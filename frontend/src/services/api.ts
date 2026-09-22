@@ -1,7 +1,10 @@
 import { Platform } from 'react-native';
 
-// Dynamically determine backend URL based on host environment
+// Dynamically determine backend URL based on host environment or .env
 export const getBaseUrl = (): string => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
   if (Platform.OS === 'android') {
     // Android emulator alias for host localhost
     return 'http://10.0.2.2:5000/api/v1';
