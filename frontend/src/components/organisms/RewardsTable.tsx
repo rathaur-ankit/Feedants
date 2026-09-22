@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { Ionicons } from '@expo/vector-icons';
 
 export interface Reward {
   readonly position: string;
@@ -13,21 +13,27 @@ export interface RewardsTableProps {
 }
 
 export const RewardsTable: React.FC<RewardsTableProps> = ({ rewards }) => {
+  const renderIcon = (index: number) => {
+    if (index === 0) {
+      return <Text style={styles.trophyEmoji}>🏆</Text>;
+    } else if (index === 1) {
+      return <Text style={styles.medalEmoji}>🥈</Text>;
+    } else if (index === 2) {
+      return <Text style={styles.medalEmoji}>🥉</Text>;
+    } else {
+      return <Ionicons name="star-outline" size={17} color="#007d79" style={styles.starIcon} />;
+    }
+  };
+
   return (
     <View style={styles.container}>
       {rewards.map((reward, index) => (
-        <View 
-          key={index} 
-          style={[
-            styles.row, 
-            index !== rewards.length - 1 && styles.borderBottom
-          ]}
-        >
+        <View key={index} style={styles.row}>
           <View style={styles.leftCol}>
-            <Text style={styles.emoji}>{reward.emoji}</Text>
-            <Text style={styles.position}>{reward.position}</Text>
+            {renderIcon(index)}
+            <Text style={styles.positionText}>{reward.position}</Text>
           </View>
-          <Text style={styles.amount}>{reward.amount}</Text>
+          <Text style={styles.amountText}>{reward.amount}</Text>
         </View>
       ))}
     </View>
@@ -36,39 +42,37 @@ export const RewardsTable: React.FC<RewardsTableProps> = ({ rewards }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    overflow: 'hidden',
+    gap: 12,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.surfaceContainerLowest,
-  },
-  borderBottom: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceContainerHigh,
+    paddingVertical: 2,
   },
   leftCol: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: typography.sizes.lg,
-    marginRight: spacing.sm,
+  trophyEmoji: {
+    fontSize: 16,
+    marginRight: 12,
   },
-  position: {
-    fontSize: typography.sizes.sm,
-    color: colors.onSurface,
-    fontWeight: typography.weights.medium,
+  medalEmoji: {
+    fontSize: 16,
+    marginRight: 12,
   },
-  amount: {
-    fontSize: typography.sizes.sm,
-    color: colors.primary,
-    fontWeight: typography.weights.bold,
+  starIcon: {
+    marginRight: 12,
+  },
+  positionText: {
+    fontSize: 13,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  amountText: {
+    fontSize: 14,
+    color: '#007d79',
+    fontWeight: '700',
   },
 });

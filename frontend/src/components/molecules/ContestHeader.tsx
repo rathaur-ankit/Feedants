@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius, shadows } from '../../theme';
+import { colors, spacing, typography, borderRadius } from '../../theme';
 
 export interface ContestHeaderProps {
   readonly title: string;
@@ -11,6 +11,7 @@ export interface ContestHeaderProps {
   readonly entryFee: string;
   readonly spotsLeft: number;
   readonly totalSpots: number;
+  readonly isRegistered?: boolean;
 }
 
 export const ContestHeader: React.FC<ContestHeaderProps> = ({
@@ -21,48 +22,65 @@ export const ContestHeader: React.FC<ContestHeaderProps> = ({
   entryFee,
   spotsLeft,
   totalSpots,
+  isRegistered = true,
 }) => {
-  const progress = ((totalSpots - spotsLeft) / totalSpots) * 100;
+  const bookedSpots = Math.max(0, totalSpots - spotsLeft);
+  const progressPercent = Math.min(100, Math.max(5, (bookedSpots / totalSpots) * 100));
 
   return (
     <View style={styles.card}>
+      {/* Title & Registration Badge */}
       <View style={styles.topRow}>
-        <Text style={styles.title}>{title}</Text>
-        <View style={styles.badge}>
-          <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
-          <Text style={styles.badgeText}>Registered</Text>
-        </View>
+        <Text style={styles.title} numberOfLines={2}>
+          {title}
+        </Text>
+        {isRegistered && (
+          <View style={styles.registeredBadge}>
+            <Ionicons name="checkmark-circle" size={14} color="#007d79" />
+            <Text style={styles.registeredText}>Registered</Text>
+          </View>
+        )}
       </View>
 
+      {/* Tags Row */}
       <View style={styles.tagsRow}>
         {tags.map((tag, index) => (
-          <View key={index} style={styles.tag}>
+          <View key={index} style={styles.tagPill}>
             <Text style={styles.tagText}>{tag}</Text>
           </View>
         ))}
-        <View style={styles.certificateNote}>
-          <Ionicons name="ribbon" size={12} color={colors.amber600} />
+        <View style={styles.certificateRow}>
+          <Ionicons name="trophy-outline" size={14} color="#007d79" />
           <Text style={styles.certificateText}>{certificateNote}</Text>
         </View>
       </View>
 
-      <View style={styles.metricsGrid}>
+      {/* Metrics Row (3 Columns) */}
+      <View style={styles.metricsRow}>
+        {/* Prize Pool */}
         <View style={styles.metricCol}>
           <Text style={styles.metricLabel}>Prize Pool</Text>
-          <Text style={styles.metricValue}>{prizePool}</Text>
+          <Text style={styles.prizePoolValue}>{prizePool}</Text>
         </View>
-        <View style={styles.metricDivider} />
+
+        {/* Entry Fee */}
         <View style={styles.metricCol}>
           <Text style={styles.metricLabel}>Entry Fee</Text>
-          <Text style={styles.metricValue}>{entryFee}</Text>
+          <Text style={styles.entryFeeValue}>{entryFee}</Text>
         </View>
-        <View style={styles.metricDivider} />
-        <View style={styles.metricCol}>
-          <Text style={styles.metricLabel}>Spots Left</Text>
-          <Text style={styles.metricValue}>{spotsLeft}/{totalSpots}</Text>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+
+        {/* Spots Left & Progress */}
+        <View style={[styles.metricCol, styles.spotsCol]}>
+          <View style={styles.spotsCountRow}>
+            <Ionicons name="people-outline" size={13} color="#007d79" />
+            <Text style={styles.spotsLeftText}>Only {spotsLeft} spots left</Text>
           </View>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+          </View>
+          <Text style={styles.bookedText}>
+            {bookedSpots} / {totalSpots} Booked
+          </Text>
         </View>
       </View>
     </View>
@@ -71,110 +89,126 @@ export const ContestHeader: React.FC<ContestHeaderProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    marginHorizontal: spacing.xl,
-    ...shadows.md,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#e8eeee',
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: spacing.md,
+    marginBottom: 10,
   },
   title: {
     flex: 1,
-    fontSize: typography.sizes['2xl'],
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
-    marginRight: spacing.md,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginRight: 10,
+    lineHeight: 26,
   },
-  badge: {
+  registeredBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.brand50,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    backgroundColor: '#e6f7f5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.brand100,
+    borderColor: '#bce4da',
   },
-  badgeText: {
-    fontSize: typography.sizes.xs,
-    fontWeight: typography.weights.medium,
-    color: colors.primary,
-    marginLeft: spacing.xs,
+  registeredText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007d79',
+    marginLeft: 4,
   },
   tagsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
+    gap: 8,
+    marginBottom: 16,
   },
-  tag: {
-    backgroundColor: colors.surfaceContainer,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
+  tagPill: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   tagText: {
-    fontSize: typography.sizes.xs,
-    color: colors.onSurfaceVariant,
-    fontWeight: typography.weights.medium,
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '500',
   },
-  certificateNote: {
+  certificateRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.amber50,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
+    gap: 4,
+    marginLeft: 2,
   },
   certificateText: {
-    fontSize: typography.sizes.xs,
-    color: colors.amber800,
-    marginLeft: spacing.xs,
-    fontWeight: typography.weights.medium,
+    fontSize: 12,
+    color: '#007d79',
+    fontWeight: '500',
   },
-  metricsGrid: {
+  metricsRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingTop: 4,
   },
   metricCol: {
     flex: 1,
-    alignItems: 'center',
   },
-  metricDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: colors.outlineVariant,
+  spotsCol: {
+    flex: 1.3,
   },
   metricLabel: {
-    fontSize: typography.sizes.xs,
-    color: colors.onSurfaceVariant,
-    marginBottom: spacing.xs,
+    fontSize: 11,
+    color: '#64748b',
+    marginBottom: 4,
+    fontWeight: '400',
   },
-  metricValue: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
+  prizePoolValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#007d79',
+  },
+  entryFeeValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  spotsCountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+  },
+  spotsLeftText: {
+    fontSize: 12,
+    color: '#007d79',
+    fontWeight: '600',
   },
   progressTrack: {
     height: 4,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: borderRadius.full,
-    width: '80%',
-    marginTop: spacing.sm,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 2,
+    width: '100%',
     overflow: 'hidden',
+    marginBottom: 4,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.full,
+    backgroundColor: '#007d79',
+    borderRadius: 2,
+  },
+  bookedText: {
+    fontSize: 11,
+    color: '#64748b',
   },
 });

@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, FlatList, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Image, FlatList, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '../../theme';
 
 export interface Winner {
   readonly name: string;
@@ -14,17 +13,28 @@ export interface WinnerCarouselProps {
 }
 
 export const WinnerCarousel: React.FC<WinnerCarouselProps> = ({ winners }) => {
+  const handlePress = (winner: Winner) => {
+    Alert.alert(
+      `${winner.name}'s Performance`,
+      `Playing winning performance video (${winner.position}) from the previous season.`
+    );
+  };
+
   const renderItem = ({ item }: { item: Winner }) => (
-    <View style={styles.card}>
+    <Pressable style={styles.card} onPress={() => handlePress(item)}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: item.imageUrl }} style={styles.image} />
-        <View style={styles.playOverlay}>
-          <Ionicons name="play" size={20} color={colors.white} />
+        <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />
+        <View style={styles.playButton}>
+          <Ionicons name="play" size={10} color="#ffffff" style={styles.playIcon} />
         </View>
       </View>
-      <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.position}>{item.position}</Text>
-    </View>
+      <View style={styles.infoContainer}>
+        <Text style={styles.name} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={styles.position}>{item.position}</Text>
+      </View>
+    </Pressable>
   );
 
   return (
@@ -41,38 +51,57 @@ export const WinnerCarousel: React.FC<WinnerCarouselProps> = ({ winners }) => {
 
 const styles = StyleSheet.create({
   listContainer: {
-    paddingHorizontal: spacing.xl,
-    gap: spacing.lg,
+    paddingHorizontal: 16,
+    gap: 12,
   },
   card: {
-    width: 120,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    paddingRight: 10,
   },
   imageContainer: {
-    width: 120,
-    height: 160,
-    borderRadius: borderRadius.lg,
+    width: 68,
+    height: 76,
+    borderRadius: 10,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
+    position: 'relative',
+    backgroundColor: '#f1f5f9',
   },
   image: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.surfaceVariant,
   },
-  playOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+  playButton: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#007d79',
+    borderWidth: 1.5,
+    borderColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  playIcon: {
+    marginLeft: 1.5,
+  },
+  infoContainer: {
+    marginLeft: 8,
+    justifyContent: 'center',
+    maxWidth: 90,
+  },
   name: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    color: colors.onSurface,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
   },
   position: {
-    fontSize: typography.sizes.xs,
-    color: colors.primary,
-    marginTop: 2,
+    fontSize: 11,
+    color: '#007d79',
+    fontWeight: '500',
   },
 });

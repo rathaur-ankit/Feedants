@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '../../theme';
 
 export interface DateItemProps {
   readonly icon: keyof typeof Ionicons.glyphMap;
@@ -13,10 +12,10 @@ export interface DateItemProps {
 export const DateItem: React.FC<DateItemProps> = ({ icon, label, date, time }) => {
   return (
     <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <Ionicons name={icon} size={20} color={colors.primary} />
+      <View style={styles.iconWrapper}>
+        <Ionicons name={icon} size={22} color="#007d79" />
       </View>
-      <View style={styles.textContainer}>
+      <View style={styles.textWrapper}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.date}>{date}</Text>
         <Text style={styles.time}>{time}</Text>
@@ -29,35 +28,28 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
     flex: 1,
   },
-  iconContainer: {
-    backgroundColor: colors.brand50,
-    padding: spacing.sm,
-    borderRadius: borderRadius.md,
-    marginRight: spacing.sm,
+  iconWrapper: {
+    marginRight: 10,
+    marginTop: 2,
   },
-  textContainer: {
+  textWrapper: {
     flex: 1,
   },
   label: {
-    fontSize: typography.sizes.xs,
-    color: colors.onSurfaceVariant,
+    fontSize: 11,
+    color: '#64748b',
     marginBottom: 2,
   },
   date: {
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.semibold,
-    color: colors.onSurface,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
     marginBottom: 2,
   },
   time: {
-    fontSize: typography.sizes.xs,
-    color: colors.onSurfaceVariant,
+    fontSize: 11,
+    color: '#64748b',
   },
 });

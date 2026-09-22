@@ -30,7 +30,7 @@ export const CompetitionCard: React.FC<CompetitionCardProps> = ({
   onJudgeIntroPress,
 }) => {
   return (
-    <View style={styles.container}>
+    <Pressable style={styles.container} onPress={onJoinPress}>
       <View style={styles.tagContainer}>
         {tags.map((tag, index) => (
           <View key={index} style={styles.tagWrapper}>
@@ -75,7 +75,7 @@ export const CompetitionCard: React.FC<CompetitionCardProps> = ({
           <Text style={styles.joinButtonText}>Join Now</Text>
         </Pressable>
       </View>
-    </View>
+    </Pressable>
   );
 };
 

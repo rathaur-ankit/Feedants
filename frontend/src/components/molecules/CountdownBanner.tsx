@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, borderRadius } from '../../theme';
 
 export interface CountdownBannerProps {
   readonly countdown: string;
@@ -10,13 +9,14 @@ export interface CountdownBannerProps {
 export const CountdownBanner: React.FC<CountdownBannerProps> = ({ countdown }) => {
   return (
     <View style={styles.container}>
-      <View style={styles.leftContent}>
-        <Ionicons name="hourglass" size={16} color={colors.onPrimaryContainer} />
-        <Text style={styles.label}>Registration closes in</Text>
+      <View style={styles.leftCol}>
+        <Ionicons name="hourglass-outline" size={16} color="#007d79" />
+        <Text style={styles.labelText}>Registration closes in</Text>
       </View>
-      <View style={styles.rightContent}>
-        <Text style={styles.timer}>{countdown}</Text>
-        <Text style={styles.hurry}>Hurry up!</Text>
+      <Text style={styles.timerText}>{countdown}</Text>
+      <View style={styles.rightCol}>
+        <Ionicons name="timer-outline" size={15} color="#007d79" />
+        <Text style={styles.hurryText}>Hurry up!</Text>
       </View>
     </View>
   );
@@ -27,34 +27,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.primaryContainer,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    marginHorizontal: spacing.xl,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.xl,
+    backgroundColor: '#edf8f7',
+    borderWidth: 1,
+    borderColor: '#ccebe8',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 14,
   },
-  leftContent: {
+  leftCol: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
-  label: {
-    color: colors.onPrimaryContainer,
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.medium,
-    marginLeft: spacing.sm,
+  labelText: {
+    color: '#1e293b',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  rightContent: {
-    alignItems: 'flex-end',
+  timerText: {
+    color: '#006466',
+    fontSize: 13,
+    fontWeight: '700',
   },
-  timer: {
-    color: colors.onPrimary,
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.bold,
+  rightCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  hurry: {
-    color: colors.brand200,
-    fontSize: typography.sizes.xs,
-    marginTop: 2,
+  hurryText: {
+    color: '#007d79',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

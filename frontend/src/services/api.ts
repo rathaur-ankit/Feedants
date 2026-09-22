@@ -1,19 +1,39 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 // Dynamically determine backend URL based on host environment or .env
 export const getBaseUrl = (): string => {
+  // 1. Web browser running on PC can connect to localhost directly
+  if (Platform.OS === 'web') {
+    return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+  }
+
+  // 2. On physical mobile phones, localhost points to the phone itself, NOT the PC!
+  // Resolve host computer IP from Expo's bundler hostUri or fallback to the local Wi-Fi IP
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest?.debuggerHost ||
+    (Constants as any).manifest2?.extra?.expoGo?.debuggerHost;
+
+  const computerIp = hostUri ? hostUri.split(':')[0] : '192.168.1.85';
+
+  // 3. If EXPO_PUBLIC_API_URL is configured in .env
   if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+    const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
+    // If user left localhost in .env, intelligently rewrite it to the actual computer IP for mobile
+    if (configuredUrl.includes('localhost') || configuredUrl.includes('127.0.0.1')) {
+      return configuredUrl.replace(/localhost|127\.0\.0\.1/, computerIp);
+    }
+    return configuredUrl;
   }
-  if (Platform.OS === 'android') {
-    // Android emulator alias for host localhost
-    return 'http://10.0.2.2:5000/api/v1';
-  }
-  // Web browser, iOS simulator, or local network
-  return 'http://localhost:5000/api/v1';
+
+  // 4. Default for mobile device on local Wi-Fi
+  return `http://${computerIp}:5000/api/v1`;
 };
 
 export const API_BASE_URL = getBaseUrl();
+
+console.log(`[API Base URL] Connected to: ${API_BASE_URL}`);
 
 // Helper for HTTP requests
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -211,8 +231,6 @@ export const api = {
     const res = await fetch(url, {
       method: 'POST',
       body: formData,
-      // Note: do not set Content-Type header manually for FormData in fetch,
-      // the browser/React Native environment sets it automatically with boundary.
     });
     const json = await res.json();
     if (!res.ok) {
