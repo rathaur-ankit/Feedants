@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, typography, spacing, borderRadius, shadows } from '../theme';
+import { colors, spacing, borderRadius } from '../theme';
 import { api, Competition } from '../services/api';
 import { MainTabParamList } from '../navigation/types';
 
@@ -36,18 +36,22 @@ export const CreateScreen: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // Load active competitions from database for the dropdown
+    // Load active competitions from database for the selector
     api
       .getCompetitions()
       .then((comps) => {
         setCompetitions(comps);
         if (comps.length > 0) {
-          setSelectedContestId(comps[0].id);
-          setSelectedContestTitle(comps[0].title);
+          const preselected = comps.find(
+            (c) => c.id === (route.params as any)?.contestId
+          );
+          const chosen = preselected || comps[0];
+          setSelectedContestId(chosen.id);
+          setSelectedContestTitle(chosen.title);
         }
       })
       .catch((err) => console.error('[CreateScreen] Failed to load competitions:', err));
-  }, []);
+  }, [route.params]);
 
   useEffect(() => {
     if (route.params?.capturedUri) {
@@ -64,7 +68,7 @@ export const CreateScreen: React.FC = () => {
       if (!permission.granted) {
         Alert.alert(
           'Permission Required',
-          'Camera access is required to record or take photos for your submission.'
+          'Camera access is required to record or take photos for your submission. Please enable it in Settings.'
         );
         return;
       }
@@ -105,7 +109,7 @@ export const CreateScreen: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!mediaUri) {
-      Alert.alert('Media Required', 'Please record or select a video/photo first.');
+      Alert.alert('Media Required', 'Please record a video or choose a file first.');
       return;
     }
     if (!title.trim()) {
@@ -122,8 +126,8 @@ export const CreateScreen: React.FC = () => {
       formData.append('contestId', selectedContestId || competitions[0]?.id || '');
       formData.append('mediaType', mediaType);
 
-      // Append media file to FormData
-      const filename = mediaUri.split('/').pop() || (mediaType === 'video' ? 'video.mp4' : 'photo.jpg');
+      const filename =
+        mediaUri.split('/').pop() || (mediaType === 'video' ? 'video.mp4' : 'photo.jpg');
       const mimeType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
 
       formData.append('media', {
@@ -136,7 +140,7 @@ export const CreateScreen: React.FC = () => {
 
       Alert.alert(
         'Submission Successful! 🎉',
-        `Your submission "${title}" has been saved to the database for "${selectedContestTitle}". The jury will review it before the deadline.`,
+        `Your submission "${title}" has been saved for "${selectedContestTitle}". The jury will review it before the deadline.`,
         [
           {
             text: 'View Competitions',
@@ -163,23 +167,42 @@ export const CreateScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* Top Navigation Bar */}
+      <View style={styles.topNavBar}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate('Home');
+            }
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Text style={styles.backText}>Go back</Text>
+        </Pressable>
+        <View style={styles.topBadge}>
+          <Text style={styles.topBadgeText}>NEW SUBMISSION</Text>
+        </View>
+      </View>
+
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Title */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerSubtitle}>NEW SUBMISSION</Text>
-            <Text style={styles.headerTitle}>Create & Upload</Text>
-          </View>
-          <View style={styles.cameraIconWrap}>
-            <Ionicons name="camera" size={24} color={colors.primary} />
-          </View>
+          <Text style={styles.headerTitle}>Create & Upload</Text>
+          <Text style={styles.headerSubtitle}>
+            Submit your performance for jury review & official certificates
+          </Text>
         </View>
 
-        {/* Media Preview or Capture Options */}
+        {/* Media Preview OR Capture Card */}
         {mediaUri ? (
           <View style={styles.previewCard}>
             <View style={styles.mediaContainer}>
@@ -188,37 +211,39 @@ export const CreateScreen: React.FC = () => {
                 <Ionicons
                   name={mediaType === 'video' ? 'videocam' : 'image'}
                   size={14}
-                  color={colors.onPrimary}
+                  color="#ffffff"
                 />
                 <Text style={styles.mediaTypeText}>
-                  {mediaType === 'video' ? 'Video Recorded' : 'Photo Captured'}
+                  {mediaType === 'video' ? 'Video Selected' : 'Photo Selected'}
                 </Text>
               </View>
             </View>
 
+            {/* Retake Buttons Row */}
             <View style={styles.retakeRow}>
               <Pressable
                 style={styles.retakeBtn}
                 onPress={handleLaunchCamera}
                 accessibilityRole="button"
-                accessibilityLabel="Record again"
+                accessibilityLabel="Open camera again"
               >
-                <Ionicons name="camera-reverse" size={18} color={colors.primary} />
+                <Ionicons name="camera-reverse-outline" size={18} color="#007d79" />
                 <Text style={styles.retakeBtnText}>Retake Camera</Text>
               </Pressable>
               <Pressable
                 style={styles.retakeBtn}
                 onPress={handlePickFromGallery}
                 accessibilityRole="button"
-                accessibilityLabel="Choose another from gallery"
+                accessibilityLabel="Choose another file from gallery"
               >
-                <Ionicons name="images" size={18} color={colors.primary} />
+                <Ionicons name="images-outline" size={18} color="#007d79" />
                 <Text style={styles.retakeBtnText}>Pick Gallery</Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <View style={styles.captureCard}>
+            {/* Open Camera Card Button */}
             <Pressable
               style={styles.cameraMainBtn}
               onPress={handleLaunchCamera}
@@ -226,38 +251,40 @@ export const CreateScreen: React.FC = () => {
               accessibilityLabel="Open camera to record"
             >
               <View style={styles.largeIconCircle}>
-                <Ionicons name="camera" size={36} color={colors.onPrimary} />
+                <Ionicons name="camera" size={36} color="#ffffff" />
               </View>
               <Text style={styles.cameraMainText}>Open Camera</Text>
               <Text style={styles.cameraSubText}>
-                Record your performance video or take a photo
+                Tap to record your performance video or take a photo
               </Text>
             </Pressable>
 
+            {/* Divider OR */}
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
               <Text style={styles.orText}>OR</Text>
               <View style={styles.dividerLine} />
             </View>
 
+            {/* Choose from Gallery / Files Button (Fixed contrast & crisp styling) */}
             <Pressable
               style={styles.galleryBtn}
               onPress={handlePickFromGallery}
               accessibilityRole="button"
-              accessibilityLabel="Upload from gallery"
+              accessibilityLabel="Choose from the gallery/files"
             >
-              <Ionicons name="folder-open-outline" size={20} color={colors.primary} />
+              <Ionicons name="folder-open-outline" size={20} color="#007d79" />
               <Text style={styles.galleryBtnText}>Choose from Gallery / Files</Text>
             </Pressable>
           </View>
         )}
 
-        {/* Submission Form */}
+        {/* Form Section */}
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Submission Details</Text>
 
-          {/* Contest Selector */}
-          <Text style={styles.inputLabel}>Select Competition</Text>
+          {/* Select Competition */}
+          <Text style={styles.inputLabel}>SELECT COMPETITION</Text>
           <View style={styles.contestSelector}>
             {competitions.map((c) => {
               const isSelected = selectedContestId === c.id;
@@ -270,6 +297,12 @@ export const CreateScreen: React.FC = () => {
                     setSelectedContestTitle(c.title);
                   }}
                 >
+                  <Ionicons
+                    name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                    size={18}
+                    color={isSelected ? '#007d79' : '#94a3b8'}
+                    style={{ marginRight: 8 }}
+                  />
                   <Text
                     style={[
                       styles.contestOptionText,
@@ -284,22 +317,22 @@ export const CreateScreen: React.FC = () => {
             })}
           </View>
 
-          {/* Title Input */}
-          <Text style={styles.inputLabel}>Performance Title *</Text>
+          {/* Performance Title Input */}
+          <Text style={styles.inputLabel}>PERFORMANCE TITLE *</Text>
           <TextInput
             style={styles.input}
             placeholder="e.g., Bharatnatyam Varnam - Adi Tala"
-            placeholderTextColor={colors.onSurfaceVariant}
+            placeholderTextColor="#94a3b8"
             value={title}
             onChangeText={setTitle}
           />
 
           {/* Description Input */}
-          <Text style={styles.inputLabel}>Description / Notes for Judges</Text>
+          <Text style={styles.inputLabel}>DESCRIPTION / NOTES FOR JUDGES</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             placeholder="Mention ragam, talas, props, or special choreography details..."
-            placeholderTextColor={colors.onSurfaceVariant}
+            placeholderTextColor="#94a3b8"
             value={description}
             onChangeText={setDescription}
             multiline
@@ -309,13 +342,13 @@ export const CreateScreen: React.FC = () => {
           {/* Guidelines Box */}
           <View style={styles.guidelinesBox}>
             <View style={styles.guidelineHeader}>
-              <Ionicons name="information-circle" size={18} color={colors.primary} />
+              <Ionicons name="information-circle" size={18} color="#007d79" />
               <Text style={styles.guidelineTitle}>Upload Rules & Verification</Text>
             </View>
-            <Text style={styles.guidelineItem}>• Max video length: 5 minutes</Text>
-            <Text style={styles.guidelineItem}>• High definition audio & clear framing required</Text>
-            <Text style={styles.guidelineItem}>• No lip-sync or pre-recorded studio master</Text>
-            <Text style={styles.guidelineItem}>• Submissions undergo AI originality screening</Text>
+            <Text style={styles.guidelineItem}>• Video length: 1 to 5 minutes</Text>
+            <Text style={styles.guidelineItem}>• Clear audio and landscape framing recommended</Text>
+            <Text style={styles.guidelineItem}>• Original performance without copyrighted overlays</Text>
+            <Text style={styles.guidelineItem}>• Every verified participant receives a certificate</Text>
           </View>
 
           {/* Submit Button */}
@@ -327,11 +360,22 @@ export const CreateScreen: React.FC = () => {
             accessibilityLabel="Submit performance"
           >
             {isSubmitting ? (
-              <ActivityIndicator color={colors.onPrimary} size="small" />
+              <ActivityIndicator color="#ffffff" size="small" />
             ) : (
               <>
-                <Ionicons name="cloud-upload" size={20} color={colors.onPrimary} />
-                <Text style={styles.submitBtnText}>Submit to Database</Text>
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={20}
+                  color={!mediaUri ? '#94a3b8' : '#ffffff'}
+                />
+                <Text
+                  style={[
+                    styles.submitBtnText,
+                    !mediaUri && styles.submitBtnTextDisabled,
+                  ]}
+                >
+                  {mediaUri ? 'Submit Performance' : 'Record or Select Media to Submit'}
+                </Text>
               </>
             )}
           </Pressable>
@@ -344,276 +388,289 @@ export const CreateScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8fbfb',
+  },
+  topNavBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#f8fbfb',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  backText: {
+    fontSize: 15,
+    color: '#111827',
+    fontWeight: '700',
+  },
+  topBadge: {
+    backgroundColor: '#e6f7f5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#bce4da',
+  },
+  topBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#007d79',
+    letterSpacing: 0.5,
   },
   container: {
     flex: 1,
   },
   contentContainer: {
-    padding: spacing.xl,
-    paddingBottom: spacing['6xl'],
+    paddingHorizontal: 16,
+    paddingBottom: 40,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  headerSubtitle: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.primary,
-    letterSpacing: 1.5,
-    marginBottom: 4,
+    marginBottom: 16,
+    marginTop: 4,
   },
   headerTitle: {
-    fontSize: typography.sizes['3xl'],
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#111827',
   },
-  cameraIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryContainer,
-    justifyContent: 'center',
-    alignItems: 'center',
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 4,
   },
   previewCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    marginBottom: spacing.xl,
-    ...shadows.md,
+    borderColor: '#e8eeee',
+    marginBottom: 20,
   },
   mediaContainer: {
     position: 'relative',
     width: '100%',
-    height: 280,
-    backgroundColor: colors.surfaceContainerHighest,
+    height: 240,
+    backgroundColor: '#0f172a',
   },
   mediaImage: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
+    resizeMode: 'contain',
   },
   mediaTypeBadge: {
     position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
+    top: 12,
+    left: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
     gap: 4,
   },
   mediaTypeText: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.onPrimary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   retakeRow: {
     flexDirection: 'row',
-    padding: spacing.md,
-    gap: spacing.md,
-    backgroundColor: colors.surfaceContainerLow,
+    padding: 12,
+    gap: 12,
+    backgroundColor: '#ffffff',
   },
   retakeBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    gap: spacing.xs,
+    paddingVertical: 10,
+    backgroundColor: '#f0fdfa',
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#007d79',
+    gap: 6,
   },
   retakeBtnText: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#006466',
   },
   captureCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    borderWidth: 2,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: '#bce4da',
     borderStyle: 'dashed',
-    borderColor: colors.brand200,
     alignItems: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: 20,
   },
   cameraMainBtn: {
     alignItems: 'center',
-    paddingVertical: spacing.lg,
+    paddingVertical: 14,
     width: '100%',
   },
   largeIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#007d79',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
-    ...shadows.md,
+    marginBottom: 12,
   },
   cameraMainText: {
-    fontSize: typography.sizes.lg,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
     marginBottom: 4,
   },
   cameraSubText: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    color: colors.onSurfaceVariant,
+    fontSize: 13,
+    color: '#64748b',
     textAlign: 'center',
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginVertical: spacing.md,
+    marginVertical: 14,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.outlineVariant,
+    backgroundColor: '#e2e8f0',
   },
   orText: {
-    marginHorizontal: spacing.md,
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    color: colors.onSurfaceVariant,
-    fontWeight: typography.weights.bold,
+    marginHorizontal: 12,
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '700',
   },
   galleryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    paddingVertical: spacing.md,
-    backgroundColor: colors.primaryContainer,
-    borderRadius: borderRadius.lg,
-    gap: spacing.sm,
+    paddingVertical: 14,
+    backgroundColor: '#f0fdfa',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#007d79',
+    gap: 8,
   },
   galleryBtnText: {
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#006466',
   },
   formSection: {
-    gap: spacing.md,
+    gap: 12,
   },
   sectionTitle: {
-    fontSize: typography.sizes.lg,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
-    marginBottom: spacing.xs,
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 2,
   },
   inputLabel: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
-    textTransform: 'uppercase',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
     letterSpacing: 0.5,
   },
   contestSelector: {
-    gap: spacing.xs,
+    gap: 8,
   },
   contestOption: {
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    backgroundColor: colors.surfaceContainerLowest,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
   },
   contestOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryContainer,
+    borderColor: '#007d79',
+    borderWidth: 1.5,
+    backgroundColor: '#e6f7f5',
   },
   contestOptionText: {
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily,
-    color: colors.onSurface,
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '500',
+    flex: 1,
   },
   contestOptionTextActive: {
-    color: colors.primary,
-    fontWeight: typography.weights.bold,
+    color: '#006466',
+    fontWeight: '700',
   },
   input: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.md,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.outlineVariant,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily,
-    color: colors.onSurface,
+    borderColor: '#cbd5e1',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111827',
   },
   textArea: {
     height: 96,
     textAlignVertical: 'top',
   },
   guidelinesBox: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginVertical: spacing.xs,
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 14,
+    marginVertical: 4,
     gap: 4,
   },
   guidelineHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: 6,
     marginBottom: 4,
   },
   guidelineTitle: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#007d79',
   },
   guidelineItem: {
-    fontSize: 11,
-    fontFamily: typography.fontFamily,
-    color: colors.onSurfaceVariant,
-    lineHeight: 16,
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
   },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.full,
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    ...shadows.md,
+    backgroundColor: '#006466',
+    borderRadius: 12,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 8,
   },
   submitBtnDisabled: {
-    opacity: 0.5,
+    backgroundColor: '#e2e8f0',
   },
   submitBtnText: {
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.onPrimary,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  submitBtnTextDisabled: {
+    color: '#94a3b8',
   },
 });

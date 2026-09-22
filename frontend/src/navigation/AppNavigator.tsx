@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Image, Alert } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { RootStackParamList, MainTabParamList } from './types';
 import { colors, spacing, shadows, borderRadius, typography } from '../theme';
 import { api } from '../services/api';
@@ -72,54 +71,14 @@ function MainTabs() {
       <Tab.Screen
         name="Create"
         component={CreateScreen}
-        options={({ navigation }) => ({
+        options={{
           tabBarLabel: () => null,
           tabBarIcon: () => (
             <View style={styles.fabIcon}>
-              <Ionicons name="add" size={28} color={colors.onPrimary} />
+              <Ionicons name="add" size={26} color="#ffffff" />
             </View>
           ),
-          tabBarButton: (props) => (
-            <Pressable
-              onPress={async () => {
-                try {
-                  const permission = await ImagePicker.requestCameraPermissionsAsync();
-                  if (!permission.granted) {
-                    Alert.alert(
-                      'Camera Permission Needed',
-                      'Please grant camera permission to record or take photos for competitions.'
-                    );
-                    navigation.navigate('Create');
-                    return;
-                  }
-
-                  const result = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ['images', 'videos'],
-                    allowsEditing: true,
-                    quality: 1,
-                  });
-
-                  if (!result.canceled && result.assets && result.assets.length > 0) {
-                    const asset = result.assets[0];
-                    navigation.navigate('Create', {
-                      capturedUri: asset.uri,
-                      mediaType: asset.type === 'image' ? 'image' : 'video',
-                    });
-                  } else {
-                    navigation.navigate('Create');
-                  }
-                } catch (error) {
-                  navigation.navigate('Create');
-                }
-              }}
-              style={styles.fabContainer}
-              accessibilityRole="button"
-              accessibilityLabel="Create new submission"
-            >
-              {props.children}
-            </Pressable>
-          ),
-        })}
+        }}
       />
       <Tab.Screen
         name="Competitions"
@@ -169,11 +128,12 @@ export default function AppNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderTopWidth: 0,
-    height: 64,
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.sm,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#e8eeee',
+    height: 60,
+    paddingBottom: 6,
+    paddingTop: 6,
     ...shadows.sm,
   },
   tabLabel: {
@@ -181,19 +141,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
     marginTop: 2,
   },
-  fabContainer: {
-    top: -14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   fabIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primaryContainer,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#007d79',
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadows.fab,
+    marginTop: 4,
   },
   profileAvatar: {
     width: 26,

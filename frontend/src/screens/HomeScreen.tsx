@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ScrollView,
   View,
@@ -39,6 +39,8 @@ export const HomeScreen = () => {
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
   const [champions, setChampions] = useState<ChampionItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const loadData = useCallback(async () => {
     try {
@@ -81,6 +83,34 @@ export const HomeScreen = () => {
     loadData();
   };
 
+  const filteredCompetitions = useMemo(() => {
+    return competitions.filter((comp) => {
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesQuery =
+          comp.title.toLowerCase().includes(q) ||
+          comp.category?.toLowerCase().includes(q) ||
+          comp.judge?.name.toLowerCase().includes(q) ||
+          comp.tags?.some((t) => t.label.toLowerCase().includes(q));
+        if (!matchesQuery) return false;
+      }
+
+      // Category filter
+      if (selectedCategory && selectedCategory !== 'All') {
+        const cat = selectedCategory.toLowerCase();
+        const matchesCat =
+          comp.category?.toLowerCase() === cat ||
+          comp.category?.toLowerCase().includes(cat) ||
+          comp.tags?.some((t) => t.label.toLowerCase().includes(cat)) ||
+          comp.title.toLowerCase().includes(cat);
+        if (!matchesCat) return false;
+      }
+
+      return true;
+    });
+  }, [competitions, selectedCategory, searchQuery]);
+
   const userName = user?.name ? user.name.split(' ')[0] : 'Creator';
 
   return (
@@ -100,7 +130,12 @@ export const HomeScreen = () => {
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <SearchBar onFilterPress={() => navigation.navigate('Competitions')} />
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search competitions, judges, tags..."
+            onFilterPress={() => setSelectedCategory('All')}
+          />
         </View>
 
         {loading ? (
@@ -176,44 +211,70 @@ export const HomeScreen = () => {
                 style={styles.categoriesContainer}
                 contentContainerStyle={styles.categoriesContent}
               >
-                {categories.map((cat, idx) => (
-                  <Chip
-                    key={cat.id || idx}
-                    label={cat.label}
-                    emoji={cat.emoji}
-                    isActive={idx === 0}
-                    onPress={() => navigation.navigate('Competitions')}
-                  />
-                ))}
+                {categories.map((cat, idx) => {
+                  const isSelected = selectedCategory === cat.label;
+                  return (
+                    <Chip
+                      key={cat.id || idx}
+                      label={cat.label}
+                      emoji={cat.emoji}
+                      isActive={isSelected}
+                      onPress={() => setSelectedCategory(cat.label)}
+                    />
+                  );
+                })}
               </ScrollView>
             )}
 
             {/* Trending Competitions */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Trending Competitions</Text>
-              <Pressable
-                onPress={() => navigation.navigate('Competitions')}
-                accessibilityRole="button"
-                accessibilityLabel="View all competitions"
-              >
-                <Text style={styles.viewAll}>View all</Text>
-              </Pressable>
+              <Text style={styles.sectionTitle}>
+                {selectedCategory === 'All' ? 'Trending Competitions' : `${selectedCategory} Contests`}
+              </Text>
+              {selectedCategory !== 'All' ? (
+                <Pressable onPress={() => setSelectedCategory('All')}>
+                  <Text style={styles.viewAll}>Show All</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={() => navigation.navigate('Competitions')}
+                  accessibilityRole="button"
+                  accessibilityLabel="View all competitions"
+                >
+                  <Text style={styles.viewAll}>View all</Text>
+                </Pressable>
+              )}
             </View>
             <View style={styles.competitionsContainer}>
-              {competitions.map((comp) => (
-                <CompetitionCard
-                  key={comp.id}
-                  title={comp.title}
-                  tags={comp.tags}
-                  prizePool={comp.prizePool}
-                  judge={comp.judge}
-                  spotsLeft={comp.spotsLeft}
-                  totalSpots={comp.totalSpots}
-                  entryFee={comp.entryFee}
-                  onJoinPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
-                  onJudgeIntroPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
-                />
-              ))}
+              {filteredCompetitions.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="filter-outline" size={32} color="#94a3b8" />
+                  <Text style={styles.emptyText}>
+                    No competitions found in "{selectedCategory}"
+                  </Text>
+                  <Pressable
+                    style={styles.resetBtn}
+                    onPress={() => setSelectedCategory('All')}
+                  >
+                    <Text style={styles.resetBtnText}>Show All Competitions</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                filteredCompetitions.map((comp) => (
+                  <CompetitionCard
+                    key={comp.id}
+                    title={comp.title}
+                    tags={comp.tags}
+                    prizePool={comp.prizePool}
+                    judge={comp.judge}
+                    spotsLeft={comp.spotsLeft}
+                    totalSpots={comp.totalSpots}
+                    entryFee={comp.entryFee}
+                    onJoinPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
+                    onJudgeIntroPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
+                  />
+                ))
+              )}
             </View>
 
             {/* Hall of Champions */}
@@ -470,5 +531,34 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     backgroundColor: colors.outlineVariant,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e8eeee',
+    gap: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  resetBtn: {
+    marginTop: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#e6f7f5',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#bce4da',
+  },
+  resetBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#007d79',
   },
 });
