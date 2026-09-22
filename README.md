@@ -22,49 +22,6 @@ The codebase consists of:
 
 ---
 
-## 🏛️ System Architecture
-
-```mermaid
-flowchart TD
-    subgraph Client["📱 Client Tier (React Native / Expo SDK 57)"]
-        UI["Atomic UI Hierarchy (Atoms / Molecules / Organisms)"]
-        Nav["Navigation Stack & Bottom Tabs"]
-        APISvc["Smart API Client (Dynamic Host IP Discovery)"]
-        UI --> APISvc
-        Nav --> UI
-    end
-
-    subgraph Gateway["🛡️ Gateway & Middleware Layer"]
-        Helmet["Helmet (Security Headers)"]
-        Compression["Gzip / Deflate Compression"]
-        RateLimit["Sliding-Window Rate Limiter (10k req/min)"]
-        Cache["In-Memory TTL Cache (Sub-5ms Hits)"]
-    end
-
-    subgraph Compute["⚙️ Clustered Application Workers (Node.js)"]
-        Primary["Cluster Primary / Master Process"]
-        Worker1["Worker Process 1"]
-        Worker2["Worker Process 2"]
-        WorkerN["Worker Process N (Auto-Fork on CPU Cores)"]
-        Primary --> Worker1
-        Primary --> Worker2
-        Primary --> WorkerN
-    end
-
-    subgraph DataStore["💾 Data & Storage Tier"]
-        MongoPool["MongoDB Atlas (Pre-warmed Connection Pool: 10-100)"]
-        CloudinaryCDN["Cloudinary Media CDN (Streamed Uploads & Video Transcoding)"]
-    end
-
-    APISvc -->|REST / HTTPS| Helmet
-    Helmet --> Compression --> RateLimit --> Cache
-    Cache -->|Cache Miss| Worker1 & Worker2 & WorkerN
-    Worker1 & Worker2 & WorkerN -->|Atomic Queries / Lean Queries| MongoPool
-    Worker1 & Worker2 & WorkerN -->|Stream Performance Media| CloudinaryCDN
-```
-
----
-
 ## 🎯 Key Features Across the Stack
 
 ### 📱 Frontend Experience (React Native + Expo)
