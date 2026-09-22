@@ -16,6 +16,7 @@
 **Feedants** is an end-to-end, high-throughput talent discovery and competition platform built for creators, adjudicators, and audiences. The platform powers national-level skill championships, verified jury evaluations, atomic spot booking under high concurrency, high-res multimedia submissions, and live community voting.
 
 The codebase consists of:
+
 - **High-Concurrency Backend API** (`/backend`): A clustered, production-tuned Node.js/Express service backed by MongoDB with connection pooling, in-memory caching, atomic write operations, and Cloudinary media processing.
 - **Cross-Platform Client** (`/frontend`): A mobile-first React Native & Expo application designed with strict **Atomic Design** principles (`atoms`, `molecules`, `organisms`, `screens`), multi-language support (English/Hindi), dynamic LAN IP resolution for physical hardware, and smooth micro-interactions.
 
@@ -67,6 +68,7 @@ flowchart TD
 ## 🎯 Key Features Across the Stack
 
 ### 📱 Frontend Experience (React Native + Expo)
+
 1. **Dynamic Home Feed**:
    - Spotlight Mega-Contest hero banner with real-time countdown.
    - Active registration alert bar displaying imminent submission deadlines and allocated slot numbers.
@@ -94,6 +96,7 @@ flowchart TD
    - Verified Achievement showcase with digital certificate preview.
 
 ### ⚙️ Backend Engineering (Node.js + Express + MongoDB)
+
 1. **Engineered for 10,000+ Concurrent Requests**:
    - Primary/Worker multi-process clustering utilizing all available CPU cores with auto-healing respawn.
    - HTTP keep-alive optimization (`keepAliveTimeout: 65000ms`, `headersTimeout: 66000ms`, unlimited client reuse).
@@ -173,6 +176,7 @@ assignment/
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
+
 - **Docker & Docker Compose** (Recommended for instant setup) OR **Node.js v20+ & MongoDB**
 - **Expo Go App**: Installed on physical Android / iOS device (or simulator)
 - **Cloudinary Account**: Cloud name, API key & secret for media uploads (optional for browsing)
@@ -182,31 +186,39 @@ assignment/
 ### 1. Backend Setup
 
 #### Option A: One-Command Docker Setup (Recommended)
+
 From the project root:
+
 ```bash
 docker compose up -d
 ```
+
 This spins up MongoDB and the clustered Node.js backend automatically.
 Verify health: `curl http://localhost:5000/api/v1/health`
 
 To view logs or stop:
+
 ```bash
 docker compose logs -f backend
 docker compose down
 ```
 
 #### Option B: Native Node.js Setup
+
 ```bash
 cd backend
 npm install
 cp .env.example .env
 ```
+
 Configure `.env` with your `MONGO_URI`, then run:
+
 ```bash
 npm run dev       # Development mode
 # or
 npm start         # Clustered production mode
 ```
+
 Verify health: `http://localhost:5000/api/v1/health`
 
 ---
@@ -225,6 +237,7 @@ cp .env.example .env
 ```
 
 Open `frontend/.env` and verify:
+
 ```env
 EXPO_PUBLIC_API_URL=http://localhost:5000/api/v1
 EXPO_PUBLIC_APP_ENV=development
@@ -233,6 +246,7 @@ EXPO_PUBLIC_APP_ENV=development
 > **Smart LAN IP Detection**: On physical mobile devices, `localhost` refers to the mobile phone itself. Our custom networking service (`frontend/src/services/api.ts`) automatically extracts your computer's local Wi-Fi IP from the Expo bundler host URI at runtime. You do not need to manually edit IP addresses when switching between PC web and physical phone testing.
 
 Launch the Expo Development Server:
+
 ```bash
 npx expo start
 ```
@@ -247,6 +261,7 @@ npx expo start
 ## 📡 API Reference Overview
 
 All responses follow a consistent, enterprise-grade response structure:
+
 ```json
 {
   "statusCode": 200,
@@ -256,24 +271,24 @@ All responses follow a consistent, enterprise-grade response structure:
 }
 ```
 
-| Method | Endpoint | Description | Cache / Concurrency Strategy |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/v1/health` | Service health, memory metrics, CPU cores & uptime | Real-time system diagnostics |
-| `GET` | `/api/v1/competitions` | Paginated competition feed with search & status filters | In-memory cached (30s TTL), Lean query |
-| `GET` | `/api/v1/competitions/mega` | Spotlight hero banner contest data | In-memory cached |
-| `GET` | `/api/v1/competitions/categories`| All talent categories with live count | In-memory cached |
-| `GET` | `/api/v1/competitions/:id` | Full competition details, rules, rewards, & judges | Lean query with text search fallback |
-| `POST`| `/api/v1/competitions/:id/join`| Join/reserve spot for a competition | **Atomic `$inc` update**; race-condition immune |
-| `POST`| `/api/v1/competitions` | Create new competition (Host/Admin) | Invalidates competition cache |
-| `POST`| `/api/v1/submissions` | Upload performance media (file stream or URL) | Multer + Cloudinary CDN stream |
-| `GET` | `/api/v1/submissions/trending`| Trending video showcase for Explore feed | Sorted by votes & views, indexed query |
-| `POST`| `/api/v1/submissions/:id/vote`| Cast live community vote for a submission | Atomic `$inc` vote increment |
-| `GET` | `/api/v1/explore` | Aggregated Explore data (Judges, Categories, Feed) | Aggregated parallel Promise execution |
-| `GET` | `/api/v1/users/profile` | Current user profile details & bio | Single lean fetch |
-| `GET` | `/api/v1/users/active-registration` | Active countdown data for Home screen banner | Real-time population from registrations |
-| `GET` | `/api/v1/users/my-competitions` | Competitions joined by the user with slot numbers | Multi-document population |
-| `GET` | `/api/v1/users/achievements` | Verified certificates and award badges | Indexed by userId |
-| `GET` | `/api/v1/users/wallet` | Creator wallet balance & payout history | Lean retrieval |
+| Method | Endpoint                            | Description                                             | Cache / Concurrency Strategy                    |
+| :----- | :---------------------------------- | :------------------------------------------------------ | :---------------------------------------------- |
+| `GET`  | `/api/v1/health`                    | Service health, memory metrics, CPU cores & uptime      | Real-time system diagnostics                    |
+| `GET`  | `/api/v1/competitions`              | Paginated competition feed with search & status filters | In-memory cached (30s TTL), Lean query          |
+| `GET`  | `/api/v1/competitions/mega`         | Spotlight hero banner contest data                      | In-memory cached                                |
+| `GET`  | `/api/v1/competitions/categories`   | All talent categories with live count                   | In-memory cached                                |
+| `GET`  | `/api/v1/competitions/:id`          | Full competition details, rules, rewards, & judges      | Lean query with text search fallback            |
+| `POST` | `/api/v1/competitions/:id/join`     | Join/reserve spot for a competition                     | **Atomic `$inc` update**; race-condition immune |
+| `POST` | `/api/v1/competitions`              | Create new competition (Host/Admin)                     | Invalidates competition cache                   |
+| `POST` | `/api/v1/submissions`               | Upload performance media (file stream or URL)           | Multer + Cloudinary CDN stream                  |
+| `GET`  | `/api/v1/submissions/trending`      | Trending video showcase for Explore feed                | Sorted by votes & views, indexed query          |
+| `POST` | `/api/v1/submissions/:id/vote`      | Cast live community vote for a submission               | Atomic `$inc` vote increment                    |
+| `GET`  | `/api/v1/explore`                   | Aggregated Explore data (Judges, Categories, Feed)      | Aggregated parallel Promise execution           |
+| `GET`  | `/api/v1/users/profile`             | Current user profile details & bio                      | Single lean fetch                               |
+| `GET`  | `/api/v1/users/active-registration` | Active countdown data for Home screen banner            | Real-time population from registrations         |
+| `GET`  | `/api/v1/users/my-competitions`     | Competitions joined by the user with slot numbers       | Multi-document population                       |
+| `GET`  | `/api/v1/users/achievements`        | Verified certificates and award badges                  | Indexed by userId                               |
+| `GET`  | `/api/v1/users/wallet`              | Creator wallet balance & payout history                 | Lean retrieval                                  |
 
 ---
 
@@ -287,58 +302,58 @@ This section directly addresses the four core architectural and engineering eval
 
 1. **Flash-Crowd Traffic & Burst Concurrency Profile**:
    - Rather than assuming steady, linear web traffic, the platform was modeled around **burst events** common in talent competitions (e.g., registrations opening for a marquee contest with limited spots, or final-hour voting spikes).
-   - *Design Impact*: The system was designed from Day 1 to handle **10,000+ concurrent requests** via Node.js cluster multi-processing, pre-warmed database connection pools (`minPoolSize: 10`, `maxPoolSize: 100`), and zero-lock atomic decrement operations rather than sequential queue-blocking transactions.
+   - _Design Impact_: The system was designed from Day 1 to handle **10,000+ concurrent requests** via Node.js cluster multi-processing, pre-warmed database connection pools (`minPoolSize: 10`, `maxPoolSize: 100`), and zero-lock atomic decrement operations rather than sequential queue-blocking transactions.
 
 2. **Zero-Oversubscription Invariance (Strict Finite Seats)**:
    - When a competition displays "20 spots left", overselling even a single spot due to race conditions degrades platform trust and violates jury capacity constraints.
-   - *Design Impact*: Spot reservation cannot rely on read-then-write application logic (`if (spots > 0) spots--`). It must be enforced at the database storage engine layer via atomic conditional matching (`findOneAndUpdate({ _id, spotsLeft: { $gt: 0 } }, { $inc: { spotsLeft: -1 } })`).
+   - _Design Impact_: Spot reservation cannot rely on read-then-write application logic (`if (spots > 0) spots--`). It must be enforced at the database storage engine layer via atomic conditional matching (`findOneAndUpdate({ _id, spotsLeft: { $gt: 0 } }, { $inc: { spotsLeft: -1 } })`).
 
 3. **High-Latency / Variable Mobile Connectivity**:
    - Mobile users on 4G/5G or cellular edges face packet drops and latency fluctuations.
-   - *Design Impact*: The mobile client uses optimistic UI state updates for actions like voting and bookmarking, provides cached fallback data, incorporates localized state management, and implements an adaptive networking client that seamlessly auto-detects host machine IPs without hardcoded URLs.
+   - _Design Impact_: The mobile client uses optimistic UI state updates for actions like voting and bookmarking, provides cached fallback data, incorporates localized state management, and implements an adaptive networking client that seamlessly auto-detects host machine IPs without hardcoded URLs.
 
 4. **Rich-Media Ingestion Without Application Server Bottlenecks**:
    - Performance submissions consist of high-definition video and photography. Storing and processing media files on application server disks would rapidly exhaust filesystem I/O, block the single-threaded Node.js event loop, and complicate horizontal auto-scaling.
-   - *Design Impact*: Media ingestion is treated as an ephemeral stream: files pass through memory buffers directly to a specialized globally-distributed CDN (Cloudinary) with automatic thumbnail transcoding, offloading static asset bandwidth completely.
+   - _Design Impact_: Media ingestion is treated as an ephemeral stream: files pass through memory buffers directly to a specialized globally-distributed CDN (Cloudinary) with automatic thumbnail transcoding, offloading static asset bandwidth completely.
 
 5. **Decoupled API Contract & Backward Compatibility**:
    - Mobile client release cycles are gated by app store reviews and user update schedules, whereas backend services deploy continuously.
-   - *Design Impact*: API endpoints enforce strict JSON schema contracts (`ApiResponse` and `ApiError` envelopes) with standardized semantic HTTP status codes, ensuring older mobile client versions never crash on minor schema additions.
+   - _Design Impact_: API endpoints enforce strict JSON schema contracts (`ApiResponse` and `ApiError` envelopes) with standardized semantic HTTP status codes, ensuring older mobile client versions never crash on minor schema additions.
 
 ---
 
 ### ii) Major Technical Decisions
 
 1. **Node.js Clustering & Process-Level Parallelism**:
-   - *Decision*: In `index.js`, implemented a primary-worker cluster architecture utilizing `node:cluster` and `os.cpus()`.
-   - *Rationale*: Because Node.js operates on a single-threaded event loop, a single process cannot saturate modern multi-core server hardware. Forking worker processes across all physical cores allows the backend to scale CPU-bound JSON serialization and crypto tasks horizontally on a single node, increasing request throughput by 4x–8x while providing instant worker crash recovery.
+   - _Decision_: In `index.js`, implemented a primary-worker cluster architecture utilizing `node:cluster` and `os.cpus()`.
+   - _Rationale_: Because Node.js operates on a single-threaded event loop, a single process cannot saturate modern multi-core server hardware. Forking worker processes across all physical cores allows the backend to scale CPU-bound JSON serialization and crypto tasks horizontally on a single node, increasing request throughput by 4x–8x while providing instant worker crash recovery.
 
 2. **Conditional Atomic Operations Over Distributed Locks**:
-   - *Decision*: Avoided heavy multi-document distributed transaction managers or Redlock algorithms for spot allocation and voting, choosing native MongoDB conditional atomic operators (`$inc` guarded by `{ spotsLeft: { $gt: 0 } }`).
-   - *Rationale*: Distributed locks introduce significant latency overhead, network round-trips, and deadlocking hazards under 10k requests/second. MongoDB executes document-level atomic mutations inside the WiredTiger storage engine in microseconds, ensuring absolute consistency with zero lock contention.
+   - _Decision_: Avoided heavy multi-document distributed transaction managers or Redlock algorithms for spot allocation and voting, choosing native MongoDB conditional atomic operators (`$inc` guarded by `{ spotsLeft: { $gt: 0 } }`).
+   - _Rationale_: Distributed locks introduce significant latency overhead, network round-trips, and deadlocking hazards under 10k requests/second. MongoDB executes document-level atomic mutations inside the WiredTiger storage engine in microseconds, ensuring absolute consistency with zero lock contention.
 
 3. **Two-Tier In-Memory TTL Cache Layer with Targeted Busting**:
-   - *Decision*: Implemented route-level caching middleware with configurable TTLs and granular invalidation triggers (`clearCache("competitions")`).
-   - *Rationale*: Read operations (such as browsing the contest feed, viewing categories, and reading judge bios) outnumber write operations by roughly 50:1. Serving hot catalog data directly from memory reduces database round-trip times from ~30ms to <2ms, freeing database connection pool capacity for critical write transactions.
+   - _Decision_: Implemented route-level caching middleware with configurable TTLs and granular invalidation triggers (`clearCache("competitions")`).
+   - _Rationale_: Read operations (such as browsing the contest feed, viewing categories, and reading judge bios) outnumber write operations by roughly 50:1. Serving hot catalog data directly from memory reduces database round-trip times from ~30ms to <2ms, freeing database connection pool capacity for critical write transactions.
 
 4. **Atomic Design Hierarchy for Frontend Component Architecture**:
-   - *Decision*: Structured `/frontend/src/components` strictly into `atoms/`, `molecules/`, and `organisms/`.
-   - *Rationale*: Talent platforms feature recurring visual primitives (urgency chips, judge badges, trust seals, leaderboard rows). Atomic design prevents component duplication, guarantees brand consistency across all screens, and enables rapid composition of complex views (like `ContestDetailsScreen`) from validated, isolated components.
+   - _Decision_: Structured `/frontend/src/components` strictly into `atoms/`, `molecules/`, and `organisms/`.
+   - _Rationale_: Talent platforms feature recurring visual primitives (urgency chips, judge badges, trust seals, leaderboard rows). Atomic design prevents component duplication, guarantees brand consistency across all screens, and enables rapid composition of complex views (like `ContestDetailsScreen`) from validated, isolated components.
 
 5. **Lean Query Projection & Database Index Optimization**:
-   - *Decision*: Applied `.lean().exec()` across all high-frequency read queries alongside compound database indices (`{ status: 1, category: 1 }` and text indices on `{ title: "text", category: "text" }`).
-   - *Rationale*: Mongoose documents instantiate substantial internal state (change tracking, getters, setters, validation hooks), adding measurable memory and CPU overhead. Using `.lean()` returns clean plain JavaScript objects, cutting memory footprint by ~60% and halving GC (Garbage Collection) pause times under heavy loads.
+   - _Decision_: Applied `.lean().exec()` across all high-frequency read queries alongside compound database indices (`{ status: 1, category: 1 }` and text indices on `{ title: "text", category: "text" }`).
+   - _Rationale_: Mongoose documents instantiate substantial internal state (change tracking, getters, setters, validation hooks), adding measurable memory and CPU overhead. Using `.lean()` returns clean plain JavaScript objects, cutting memory footprint by ~60% and halving GC (Garbage Collection) pause times under heavy loads.
 
 ---
 
 ### iii) Trade-offs Considered & Strategic Rationale
 
-| Decision Chosen | Alternative Considered | Strategic Rationale & Trade-off Justification |
-| :--- | :--- | :--- |
-| **In-Memory Map Cache with Route Invalidation** | Distributed Redis Cluster | **Pragmatism & Simplicity vs. Multi-Node Distribution**: While Redis provides distributed cache synchronization across multiple distinct server instances, an in-process memory cache was chosen for zero-dependency local execution, zero-setup onboarding for evaluators, and sub-millisecond memory reads. The caching middleware was designed with a decoupled interface (`cacheMiddleware`, `clearCache`), allowing Redis to be plugged in with a single file change when scaling across multi-container Kubernetes pods. |
-| **Atomic Document Operations (`$inc`)** | Message Queue (RabbitMQ / BullMQ / Kafka) | **Synchronous Feedback vs. Eventual Consistency**: Using a message queue buffers writes during extreme spikes, but turns contest registration into an asynchronous, polled user experience ("Your registration is processing..."). In high-stakes competitions where users pay entry fees, users expect instant confirmation. MongoDB's atomic conditional operators provide synchronous, definitive booking guarantees in <10ms without message broker infrastructure overhead. |
-| **Server-Mediated Streaming to Cloudinary** | Client-Side Pre-Signed Direct Uploads (S3) | **Client Simplicity & Verification vs. Server Bandwidth**: Pre-signed direct S3 uploads eliminate server transit, but require complex client-side multi-part upload handlers, retry logic, and asynchronous webhook verification to confirm the file was actually uploaded before creating the database record. Streaming via Multer directly to Cloudinary allows the backend to validate file types, enforce file size limits, verify ownership, and auto-generate web-optimized thumbnails in a single atomic client request. |
-| **Monorepo Co-location (`/backend` + `/frontend`)** | Independent Repositories | **Developer Velocity & Contract Sync vs. Repository Isolation**: Co-locating the mobile client and backend API within a unified repository allows atomic commits across full-stack features, guarantees TypeScript interface synchronization, and enables single-command environment spin-up for reviewers. |
+| Decision Chosen                                     | Alternative Considered                     | Strategic Rationale & Trade-off Justification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| :-------------------------------------------------- | :----------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **In-Memory Map Cache with Route Invalidation**     | Distributed Redis Cluster                  | **Pragmatism & Simplicity vs. Multi-Node Distribution**: While Redis provides distributed cache synchronization across multiple distinct server instances, an in-process memory cache was chosen for zero-dependency local execution, zero-setup onboarding for evaluators, and sub-millisecond memory reads. The caching middleware was designed with a decoupled interface (`cacheMiddleware`, `clearCache`), allowing Redis to be plugged in with a single file change when scaling across multi-container Kubernetes pods.   |
+| **Atomic Document Operations (`$inc`)**             | Message Queue (RabbitMQ / BullMQ / Kafka)  | **Synchronous Feedback vs. Eventual Consistency**: Using a message queue buffers writes during extreme spikes, but turns contest registration into an asynchronous, polled user experience ("Your registration is processing..."). In high-stakes competitions where users pay entry fees, users expect instant confirmation. MongoDB's atomic conditional operators provide synchronous, definitive booking guarantees in <10ms without message broker infrastructure overhead.                                                 |
+| **Server-Mediated Streaming to Cloudinary**         | Client-Side Pre-Signed Direct Uploads (S3) | **Client Simplicity & Verification vs. Server Bandwidth**: Pre-signed direct S3 uploads eliminate server transit, but require complex client-side multi-part upload handlers, retry logic, and asynchronous webhook verification to confirm the file was actually uploaded before creating the database record. Streaming via Multer directly to Cloudinary allows the backend to validate file types, enforce file size limits, verify ownership, and auto-generate web-optimized thumbnails in a single atomic client request. |
+| **Monorepo Co-location (`/backend` + `/frontend`)** | Independent Repositories                   | **Developer Velocity & Contract Sync vs. Repository Isolation**: Co-locating the mobile client and backend API within a unified repository allows atomic commits across full-stack features, guarantees TypeScript interface synchronization, and enables single-command environment spin-up for reviewers.                                                                                                                                                                                                                      |
 
 ---
 
@@ -375,12 +390,15 @@ If developing this platform further for enterprise, million-user production depl
 ## 🧪 Verification & Testing Runbook
 
 ### 1. Test Health Endpoint & Hardware Metrics
+
 ```bash
 curl -X GET http://localhost:5000/api/v1/health
 ```
-*Expected Output*: `200 OK` with JSON payload containing system status (`UP`), CPU core count, and memory allocation.
+
+_Expected Output_: `200 OK` with JSON payload containing system status (`UP`), CPU core count, and memory allocation.
 
 ### 2. Verify In-Memory Cache Headers
+
 ```bash
 # First call (Cache Miss)
 curl -i http://localhost:5000/api/v1/competitions
@@ -392,26 +410,24 @@ curl -i http://localhost:5000/api/v1/competitions
 ```
 
 ### 3. Verify Atomic Concurrency on Registration
+
 Simulate high-concurrency registration using a load-testing tool (e.g., `autocannon` or `k6`):
+
 ```bash
 npx autocannon -c 100 -d 10 -m POST http://localhost:5000/api/v1/competitions/<CONTEST_ID>/join
 ```
-*Expected Result*: Exactly `N` registrations succeed until `spotsLeft == 0`. Subsequent requests immediately receive `400 Bad Request: "Contest is already full!"` with zero over-enrollment or negative spot counts.
+
+_Expected Result_: Exactly `N` registrations succeed until `spotsLeft == 0`. Subsequent requests immediately receive `400 Bad Request: "Contest is already full!"` with zero over-enrollment or negative spot counts.
 
 ---
 
 ## 🎨 Design Tokens & UI Architecture
 
 The frontend leverages a centralized design token system defined in [`frontend/src/theme.ts`](frontend/src/theme.ts):
+
 - **Primary Brand**: `#6C5CE7` (Royal Purple) with `#A29BFE` accents.
 - **Accents & Status**: `#FF7675` (Urgency Alert), `#00B894` (Success/Verified), `#FDCB6E` (Gold/Champions).
 - **Background Tones**: `#0F0F1E` (Dark Canvas), `#1A1A2E` (Card Surface), `#2D2D44` (Elevated Surface).
 - **Typography Scale**: Normalized scale from 11px micro-captions to 28px display headers with standardized font weights.
 
 ---
-
-## 👨‍💻 Author & Contact
-
-- **Applicant**: Ankit Rathaur
-- **Repository**: [Feedants Talent & Competition Assignment](https://github.com/your-username/assignment)
-- **Role Target**: Software Engineering Intern — Full Stack / Backend / Mobile
