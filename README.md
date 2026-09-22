@@ -6,6 +6,7 @@
 [![Expo](https://img.shields.io/badge/Expo-SDK_57-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_9.x-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Docker](https://img.shields.io/badge/Docker-Compose_Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Cloudinary](https://img.shields.io/badge/Cloudinary-Media_CDN-3448C5?style=for-the-badge&logo=cloudinary&logoColor=white)](https://cloudinary.com/)
 
 ---
@@ -142,6 +143,8 @@ assignment/
 │   │   ├── utils/                 # Standardized response envelopes & Cloudinary
 │   │   ├── app.js                 # App middleware pipeline
 │   │   └── index.js               # Multi-core cluster manager & HTTP tuning
+│   ├── Dockerfile                 # Production container image
+│   ├── .dockerignore
 │   ├── .env.example               # Backend environment blueprint
 │   └── package.json
 │
@@ -161,6 +164,7 @@ assignment/
 │   ├── .env.example               # Frontend environment blueprint
 │   └── package.json
 │
+├── docker-compose.yml             # Container orchestration (Backend + MongoDB)
 └── README.md                      # Project documentation & engineering analysis
 ```
 
@@ -169,50 +173,41 @@ assignment/
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
-- **Node.js**: v18.x or v20+ recommended
-- **MongoDB**: MongoDB Atlas Cluster connection URI or local MongoDB instance
+- **Docker & Docker Compose** (Recommended for instant setup) OR **Node.js v20+ & MongoDB**
 - **Expo Go App**: Installed on physical Android / iOS device (or simulator)
-- **Cloudinary Account**: Cloud name, API key & secret for media uploads
+- **Cloudinary Account**: Cloud name, API key & secret for media uploads (optional for browsing)
 
 ---
 
 ### 1. Backend Setup
 
+#### Option A: One-Command Docker Setup (Recommended)
+From the project root:
 ```bash
-# Navigate to the backend directory
+docker compose up -d
+```
+This spins up MongoDB and the clustered Node.js backend automatically.
+Verify health: `curl http://localhost:5000/api/v1/health`
+
+To view logs or stop:
+```bash
+docker compose logs -f backend
+docker compose down
+```
+
+#### Option B: Native Node.js Setup
+```bash
 cd backend
-
-# Install dependencies
 npm install
-
-# Configure environment variables
 cp .env.example .env
 ```
-
-Open `.env` and configure your credentials:
-```env
-PORT=5000
-NODE_ENV=development
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net
-DB_NAME=feedants
-CORS_ORIGIN=*
-MAX_WORKERS=0                  # 0 = auto-fork all available CPU cores
-CACHE_TTL_SECONDS=30
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-```
-
-Start the backend:
+Configure `.env` with your `MONGO_URI`, then run:
 ```bash
-# Development mode with hot-reloading
-npm run dev
-
-# Or production cluster mode
-npm start
+npm run dev       # Development mode
+# or
+npm start         # Clustered production mode
 ```
-
-Verify backend health at: `http://localhost:5000/api/v1/health`
+Verify health: `http://localhost:5000/api/v1/health`
 
 ---
 
