@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Image, TextInput, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Image,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme';
-import { contestDetails } from '../data/mockData';
+import { api, Competition } from '../services/api';
 
 // Custom Components
 import { ContestHeader } from '../components/molecules/ContestHeader';
@@ -17,7 +27,111 @@ type Tab = 'about' | 'judging' | 'rules';
 
 export const ContestDetailsScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const contestId = route.params?.contestId;
+
   const [activeTab, setActiveTab] = useState<Tab>('about');
+  const [loading, setLoading] = useState(true);
+  const [competition, setCompetition] = useState<Competition | null>(null);
+  const [isJoining, setIsJoining] = useState(false);
+
+  const loadContest = useCallback(async () => {
+    try {
+      setLoading(true);
+      let data: Competition;
+      if (contestId) {
+        data = await api.getCompetitionById(contestId);
+      } else {
+        const comps = await api.getCompetitions();
+        data = comps[0];
+      }
+      setCompetition(data);
+    } catch (error) {
+      console.error('[ContestDetailsScreen] Failed to fetch contest from database:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [contestId]);
+
+  useEffect(() => {
+    loadContest();
+  }, [loadContest]);
+
+  const handleJoin = async () => {
+    if (!competition) return;
+    try {
+      setIsJoining(true);
+      await api.joinCompetition(competition.id);
+      Alert.alert(
+        'Registration Confirmed! 🎉',
+        `You have successfully registered for "${competition.title}". Prepare your performance and upload before the deadline.`,
+        [
+          {
+            text: 'Upload Now',
+            onPress: () =>
+              navigation.navigate('MainTabs', {
+                screen: 'Create',
+                params: { capturedUri: undefined },
+              }),
+          },
+          { text: 'OK', onPress: () => loadContest() },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Registration Failed', err.message || 'Could not register for contest.');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Fetching contest details from database...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!competition) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centerContainer}>
+          <Text style={styles.errorText}>Contest not found in database.</Text>
+          <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Text style={styles.backBtnText}>Go Back</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const judge = competition.judge || {
+    name: 'Jury Board',
+    title: 'Adjudicator',
+    experience: '10+ Years',
+    avatarUrl:
+      'https://lh3.googleusercontent.com/aida-public/AB6AXuCY4QbGoeX6pKPC72-szD4GUaZbyOiHro4IRFThC-RuvsM4cmKlQzCkMa5oD9nNIKzTjmzw-jeY6Vj61okf6mSK0kEK97-S095lvbDeqVmW11slqOmrQD35g5Zf95MJGOj-S9-gdbQivA7WzaePQnBdMJVtIYgO1imHxrudx0LJ6xAP3597wwn-n8CKdoq1o_6pUHUFb89fQZJJWMn4ZrStv-ybdvPjAWEYLhJTImEzTX_h_ST0n8kH',
+  };
+
+  const dates = competition.dates && competition.dates.length >= 4 ? competition.dates : [
+    { label: 'Register Before', date: '10 Aug 26', time: '11:50 PM' },
+    { label: 'Submission Starts', date: '6 Aug 26', time: '04:00 AM' },
+    { label: 'Submission Ends', date: '30 Aug 26', time: '11:55 PM' },
+    { label: 'Result Date', date: '1 Sept 26', time: '11:50 PM' },
+  ];
+
+  const winners = competition.previousWinners && competition.previousWinners.length > 0 ? competition.previousWinners : [
+    { name: 'Riya Shah', position: '1st Winner', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD2MiHo15SPOSpQIlZmL0_VaS06RyEVX8fUGrf9d8oI61Dg0jF9ICIyzGVSsXYomczZnS1IS9SQ9RmAt9MfuttmvX7tsz6FuA_HiKkAGHKG3fSBMkUeaZyyEIKOF_SP8v5KLukg7beUwswxB7xR754JWipaic26v_X2_SbDwDsSnakp6XMEcWf9G7szXWPT8emSS_2QuKQ4SUHobxKhrQqaZmeVrI7xGfB4nMK_xcOCQyh2y794KqD1' },
+  ];
+
+  const rewards = competition.rewards && competition.rewards.length > 0 ? competition.rewards : [
+    { position: '1st Winner', emoji: '🏆', amount: '₹ 550' },
+    { position: '2nd Winner', emoji: '🥈', amount: '₹ 300' },
+    { position: '3rd Winner', emoji: '🥉', amount: '₹ 240' },
+  ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -41,28 +155,28 @@ export const ContestDetailsScreen: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Contest Header */}
         <ContestHeader
-          title={contestDetails.title}
-          tags={contestDetails.tags}
-          certificateNote={contestDetails.certificateNote}
-          prizePool={contestDetails.prizePool}
-          entryFee={contestDetails.entryFee}
-          spotsLeft={contestDetails.spotsLeft}
-          totalSpots={contestDetails.totalSpots}
+          title={competition.title}
+          tags={competition.tags?.map((t: any) => (typeof t === 'string' ? t : t.label)) || []}
+          certificateNote={competition.certificateNote || 'Winners get certificate'}
+          prizePool={competition.prizePool}
+          entryFee={competition.entryFee}
+          spotsLeft={competition.spotsLeft}
+          totalSpots={competition.totalSpots}
         />
 
         {/* Judge Card */}
         <View style={styles.judgeCard}>
           <View style={styles.judgeHeader}>
             <View style={styles.judgeAvatarWrapper}>
-              <Image source={{ uri: contestDetails.judge.imageUrl }} style={styles.judgeAvatar} />
+              <Image source={{ uri: judge.avatarUrl }} style={styles.judgeAvatar} />
               <View style={styles.judgeBadge}>
                 <Text style={styles.judgeBadgeText}>JUDGE</Text>
               </View>
             </View>
             <View style={styles.judgeInfo}>
-              <Text style={styles.judgeName}>{contestDetails.judge.name}</Text>
-              <Text style={styles.judgeTitle}>{contestDetails.judge.title}</Text>
-              <Text style={styles.judgeExp}>{contestDetails.judge.experience}</Text>
+              <Text style={styles.judgeName}>{judge.name}</Text>
+              <Text style={styles.judgeTitle}>{judge.title || judge.role}</Text>
+              <Text style={styles.judgeExp}>{judge.experience || '10+ Years of Experience'}</Text>
             </View>
           </View>
           <Pressable style={styles.introVideoButton}>
@@ -72,50 +186,102 @@ export const ContestDetailsScreen: React.FC = () => {
         </View>
 
         {/* Countdown */}
-        <CountdownBanner countdown={contestDetails.countdown} />
+        <CountdownBanner countdown={competition.countdown || '01d : 06h : 28m : 32s'} />
 
         {/* Important Dates */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Important Dates</Text>
           <View style={styles.datesGrid}>
             <View style={styles.dateRow}>
-              <DateItem icon="calendar" label={contestDetails.dates[0].label} date={contestDetails.dates[0].date} time={contestDetails.dates[0].time} />
+              <DateItem
+                icon="calendar"
+                label={dates[0]?.label || 'Register Before'}
+                date={dates[0]?.date || ''}
+                time={dates[0]?.time || ''}
+              />
               <View style={{ width: spacing.md }} />
-              <DateItem icon="navigate" label={contestDetails.dates[1].label} date={contestDetails.dates[1].date} time={contestDetails.dates[1].time} />
+              <DateItem
+                icon="navigate"
+                label={dates[1]?.label || 'Submission Starts'}
+                date={dates[1]?.date || ''}
+                time={dates[1]?.time || ''}
+              />
             </View>
             <View style={styles.dateRow}>
-              <DateItem icon="cloud-upload" label={contestDetails.dates[2].label} date={contestDetails.dates[2].date} time={contestDetails.dates[2].time} />
+              <DateItem
+                icon="cloud-upload"
+                label={dates[2]?.label || 'Submission Ends'}
+                date={dates[2]?.date || ''}
+                time={dates[2]?.time || ''}
+              />
               <View style={{ width: spacing.md }} />
-              <DateItem icon="medal" label={contestDetails.dates[3].label} date={contestDetails.dates[3].date} time={contestDetails.dates[3].time} />
+              <DateItem
+                icon="medal"
+                label={dates[3]?.label || 'Result Date'}
+                date={dates[3]?.date || ''}
+                time={dates[3]?.time || ''}
+              />
             </View>
           </View>
         </View>
 
         {/* Previous Winners */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { paddingHorizontal: spacing.xl }]}>Previous Winners</Text>
-          <WinnerCarousel winners={contestDetails.previousWinners} />
+          <Text style={[styles.sectionTitle, { paddingHorizontal: spacing.xl }]}>
+            Previous Winners
+          </Text>
+          <WinnerCarousel winners={winners} />
         </View>
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          <Pressable style={[styles.tab, activeTab === 'about' && styles.activeTab]} onPress={() => setActiveTab('about')}>
-            <Text style={[styles.tabText, activeTab === 'about' && styles.activeTabText]}>About</Text>
+          <Pressable
+            style={[styles.tab, activeTab === 'about' && styles.activeTab]}
+            onPress={() => setActiveTab('about')}
+          >
+            <Text style={[styles.tabText, activeTab === 'about' && styles.activeTabText]}>
+              About
+            </Text>
           </Pressable>
-          <Pressable style={[styles.tab, activeTab === 'judging' && styles.activeTab]} onPress={() => setActiveTab('judging')}>
-            <Text style={[styles.tabText, activeTab === 'judging' && styles.activeTabText]}>Parameters</Text>
+          <Pressable
+            style={[styles.tab, activeTab === 'judging' && styles.activeTab]}
+            onPress={() => setActiveTab('judging')}
+          >
+            <Text style={[styles.tabText, activeTab === 'judging' && styles.activeTabText]}>
+              Parameters
+            </Text>
           </Pressable>
-          <Pressable style={[styles.tab, activeTab === 'rules' && styles.activeTab]} onPress={() => setActiveTab('rules')}>
-            <Text style={[styles.tabText, activeTab === 'rules' && styles.activeTabText]}>Rules</Text>
+          <Pressable
+            style={[styles.tab, activeTab === 'rules' && styles.activeTab]}
+            onPress={() => setActiveTab('rules')}
+          >
+            <Text style={[styles.tabText, activeTab === 'rules' && styles.activeTabText]}>
+              Rules
+            </Text>
           </Pressable>
         </View>
 
         {activeTab === 'about' && (
           <View style={styles.tabContent}>
-            <Text style={styles.aboutText}>{contestDetails.aboutText}</Text>
-            <Pressable>
-              <Text style={styles.viewMoreText}>View more</Text>
-            </Pressable>
+            <Text style={styles.aboutText}>{competition.aboutText}</Text>
+          </View>
+        )}
+
+        {activeTab === 'rules' && (
+          <View style={styles.tabContent}>
+            {competition.rules?.map((rule, idx) => (
+              <Text key={idx} style={styles.ruleItem}>
+                • {rule}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {activeTab === 'judging' && (
+          <View style={styles.tabContent}>
+            <Text style={styles.aboutText}>
+              Submissions are judged on Technique (40%), Rhythm & Expression (30%), and Audience Engagement (30%).
+            </Text>
           </View>
         )}
 
@@ -123,14 +289,16 @@ export const ContestDetailsScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Rewards & Prizes</Text>
           <View style={{ paddingHorizontal: spacing.xl }}>
-            <RewardsTable rewards={contestDetails.rewards} />
+            <RewardsTable rewards={rewards} />
           </View>
         </View>
 
         {/* Disclaimer */}
         <View style={styles.disclaimer}>
           <Ionicons name="information-circle" size={20} color={colors.onSurfaceVariant} />
-          <Text style={styles.disclaimerText}>Note: Prize distribution is subject to terms and conditions.</Text>
+          <Text style={styles.disclaimerText}>
+            Note: Prize distribution is subject to terms and conditions.
+          </Text>
         </View>
 
         {/* FAQ Row */}
@@ -154,9 +322,9 @@ export const ContestDetailsScreen: React.FC = () => {
           <Text style={styles.referralSubtitle}>Invite friends to this contest and earn rewards!</Text>
           <View style={styles.referralAction}>
             <View style={styles.referralInputContainer}>
-              <TextInput 
-                style={styles.referralInput} 
-                value="feedants.com/c/123" 
+              <TextInput
+                style={styles.referralInput}
+                value={`feedants.com/c/${competition.id}`}
                 editable={false}
               />
               <Ionicons name="copy-outline" size={20} color={colors.primary} />
@@ -167,25 +335,35 @@ export const ContestDetailsScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Testimonials */}
-        <Pressable style={styles.testimonialStrip}>
-          <View style={styles.testimonialLeft}>
-            <Ionicons name="chatbubbles-outline" size={24} color={colors.primary} />
-            <Text style={styles.testimonialText}>Hear From Our Users</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.outlineVariant} />
-        </Pressable>
-        
         {/* Padding for sticky footer */}
         <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Sticky Footer */}
       <View style={styles.stickyFooter}>
-        <View style={styles.footerStatus}>
-          <Text style={styles.footerStatusText}>Registered</Text>
-        </View>
-        <Pressable style={styles.submitButton}>
+        <Pressable
+          style={[styles.joinBtn, isJoining && { opacity: 0.7 }]}
+          onPress={handleJoin}
+          disabled={isJoining || competition.spotsLeft <= 0}
+        >
+          <Text style={styles.joinBtnText}>
+            {isJoining
+              ? 'Registering...'
+              : competition.spotsLeft <= 0
+              ? 'Contest Full'
+              : `Join for ${competition.entryFee}`}
+          </Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.submitButton}
+          onPress={() =>
+            navigation.navigate('MainTabs', {
+              screen: 'Create',
+              params: { capturedUri: undefined },
+            })
+          }
+        >
           <Ionicons name="cloud-upload-outline" size={20} color={colors.onPrimary} />
           <Text style={styles.submitButtonText}>Upload Submission</Text>
         </Pressable>
@@ -199,119 +377,157 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  navBar: {
-    flexDirection: 'row',
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    padding: spacing.xl,
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    fontSize: typography.sizes.sm,
+    color: colors.onSurfaceVariant,
+    fontFamily: typography.fontFamily,
+  },
+  errorText: {
+    fontSize: typography.sizes.md,
+    color: colors.error,
+    marginBottom: spacing.md,
+  },
+  backBtn: {
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
+  },
+  backBtnText: {
+    color: colors.onPrimary,
+    fontWeight: typography.weights.bold,
+  },
+  navBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
   },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
   },
   backText: {
-    fontSize: typography.sizes.md,
-    fontWeight: typography.weights.medium,
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
     color: colors.onSurface,
-    marginLeft: spacing.sm,
+    fontWeight: typography.weights.medium,
   },
   langPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surfaceContainerLow,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    gap: spacing.xs,
+    gap: 4,
   },
   langText: {
     fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
     fontWeight: typography.weights.medium,
   },
   scrollContent: {
-    paddingTop: spacing.md,
     paddingBottom: spacing['6xl'],
   },
   judgeCard: {
-    backgroundColor: colors.surfaceContainerLowest,
     marginHorizontal: spacing.xl,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     padding: spacing.lg,
-    borderRadius: borderRadius.xl,
-    ...shadows.sm,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   judgeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    gap: spacing.md,
+    flex: 1,
   },
   judgeAvatarWrapper: {
     position: 'relative',
-    marginRight: spacing.lg,
   },
   judgeAvatar: {
-    width: 60,
-    height: 60,
+    width: 52,
+    height: 52,
     borderRadius: borderRadius.full,
-    borderWidth: 2,
-    borderColor: colors.amber500,
+    backgroundColor: colors.surfaceContainerHighest,
   },
   judgeBadge: {
     position: 'absolute',
-    bottom: -8,
-    alignSelf: 'center',
-    backgroundColor: colors.amber500,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
+    bottom: -4,
+    left: '50%',
+    transform: [{ translateX: -18 }],
+    backgroundColor: colors.primary,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
   },
   judgeBadgeText: {
+    color: colors.onPrimary,
     fontSize: 8,
     fontWeight: typography.weights.bold,
-    color: colors.white,
   },
   judgeInfo: {
     flex: 1,
   },
   judgeName: {
-    fontSize: typography.sizes.lg,
+    fontSize: typography.sizes.md,
+    fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onSurface,
   },
   judgeTitle: {
-    fontSize: typography.sizes.sm,
-    color: colors.onSurfaceVariant,
-    marginVertical: 2,
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
   },
   judgeExp: {
     fontSize: typography.sizes.xs,
-    color: colors.primary,
-    fontWeight: typography.weights.medium,
+    fontFamily: typography.fontFamily,
+    color: colors.onSurfaceVariant,
   },
   introVideoButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brand50,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.full,
   },
   introVideoText: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
+    fontWeight: typography.weights.bold,
     color: colors.primary,
-    fontWeight: typography.weights.semibold,
-    marginLeft: spacing.sm,
   },
   section: {
-    marginTop: spacing['3xl'],
+    marginTop: spacing.xl,
   },
   sectionTitle: {
     fontSize: typography.sizes.lg,
+    fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onSurface,
-    marginBottom: spacing.lg,
     paddingHorizontal: spacing.xl,
+    marginBottom: spacing.md,
   },
   datesGrid: {
     paddingHorizontal: spacing.xl,
@@ -324,19 +540,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: colors.outlineVariant,
-    marginTop: spacing['3xl'],
+    marginHorizontal: spacing.xl,
+    marginTop: spacing.xl,
   },
   tab: {
-    flex: 1,
-    paddingVertical: spacing.lg,
-    alignItems: 'center',
+    paddingVertical: spacing.md,
+    marginRight: spacing.xl,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomWidth: 2,
     borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
     fontWeight: typography.weights.medium,
   },
@@ -349,90 +567,98 @@ const styles = StyleSheet.create({
   },
   aboutText: {
     fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
-    lineHeight: 20,
-    marginBottom: spacing.md,
+    lineHeight: 22,
   },
-  viewMoreText: {
-    color: colors.primary,
-    fontWeight: typography.weights.medium,
+  ruleItem: {
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
+    color: colors.onSurfaceVariant,
+    lineHeight: 22,
+    marginBottom: spacing.xs,
   },
   disclaimer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceContainer,
+    gap: spacing.sm,
     marginHorizontal: spacing.xl,
+    marginTop: spacing.lg,
     padding: spacing.md,
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.md,
-    marginTop: spacing['2xl'],
   },
   disclaimerText: {
     fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
-    marginLeft: spacing.sm,
     flex: 1,
   },
   faqSection: {
-    backgroundColor: colors.surfaceContainerLowest,
     marginHorizontal: spacing.xl,
     marginTop: spacing.xl,
+    backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
+    borderColor: colors.outlineVariant,
   },
   faqItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.lg,
+    gap: spacing.md,
   },
   faqText: {
     flex: 1,
-    marginLeft: spacing.md,
     fontSize: typography.sizes.sm,
-    color: colors.onSurface,
+    fontFamily: typography.fontFamily,
     fontWeight: typography.weights.medium,
+    color: colors.onSurface,
   },
   faqDivider: {
     height: 1,
-    backgroundColor: colors.surfaceContainerHigh,
-    marginLeft: spacing['5xl'],
+    backgroundColor: colors.outlineVariant,
   },
   referralCard: {
-    backgroundColor: colors.brand100,
     marginHorizontal: spacing.xl,
-    marginTop: spacing['2xl'],
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
+    marginTop: spacing.xl,
+    padding: spacing.lg,
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.lg,
   },
   referralTitle: {
-    fontSize: typography.sizes.lg,
+    fontSize: typography.sizes.md,
+    fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.primary,
   },
   referralSubtitle: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
+    marginTop: 2,
+    marginBottom: spacing.md,
   },
   referralAction: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   referralInputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceContainerLowest,
-    paddingHorizontal: spacing.md,
     borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.outlineVariant,
   },
   referralInput: {
     flex: 1,
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
     color: colors.onSurface,
-    fontSize: typography.sizes.sm,
+    paddingVertical: spacing.sm,
   },
   referButton: {
     backgroundColor: colors.primary,
@@ -441,29 +667,10 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
   },
   referButtonText: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
+    fontWeight: typography.weights.bold,
     color: colors.onPrimary,
-    fontWeight: typography.weights.bold,
-  },
-  testimonialStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.surfaceContainerLowest,
-    marginHorizontal: spacing.xl,
-    marginTop: spacing.xl,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    ...shadows.sm,
-  },
-  testimonialLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  testimonialText: {
-    marginLeft: spacing.sm,
-    fontSize: typography.sizes.sm,
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
   },
   stickyFooter: {
     position: 'absolute',
@@ -471,42 +678,43 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: colors.surfaceContainerLowest,
-    padding: spacing.xl,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     borderTopWidth: 1,
     borderTopColor: colors.outlineVariant,
-    ...Platform.select({
-      ios: { paddingBottom: spacing['4xl'] },
-    }),
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    ...shadows.lg,
   },
-  footerStatus: {
-    backgroundColor: colors.surfaceContainer,
+  joinBtn: {
+    backgroundColor: colors.surfaceContainerHighest,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
-  footerStatusText: {
-    color: colors.onSurfaceVariant,
-    fontWeight: typography.weights.medium,
+  joinBtnText: {
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
   },
   submitButton: {
     flex: 1,
-    marginLeft: spacing.lg,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.lg,
-    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
   },
   submitButtonText: {
-    color: colors.onPrimary,
-    fontSize: typography.sizes.md,
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
+    color: colors.onPrimary,
   },
 });
-
-export default ContestDetailsScreen;

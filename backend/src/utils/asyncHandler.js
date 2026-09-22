@@ -1,10 +1,19 @@
-const asyncHandler = (fun) => async (req, res, next) => {
+const asyncHandler = (fn) => async (req, res, next) => {
   try {
-    await fun(req, res, next);
+    await fn(req, res, next);
   } catch (err) {
-    res.status(err.code || 400).json({
+    const statusCode =
+      err.statusCode ||
+      (typeof err.code === "number" && err.code >= 100 && err.code < 600
+        ? err.code
+        : 500);
+
+    return res.status(statusCode).json({
+      statusCode,
       success: false,
-      message: err.message,
+      message: err.message || "Internal Server Error",
+      errors: err.errors || [],
+      ...(process.env.NODE_ENV === "development" ? { stack: err.stack } : {}),
     });
   }
 };

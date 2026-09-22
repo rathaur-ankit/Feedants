@@ -2,31 +2,32 @@ import { v2 as cloudinary } from "cloudinary";
 import "dotenv/config";
 import fs from "fs";
 
-//configuration
-
+// Configuration
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-//upload image
-
+// Upload image/video to Cloudinary with safe file cleanup
 const uploadOnCloudinary = async (localFilePath) => {
   try {
-    if (!localFilePath) return null;
-    //upload file on cloudinary
-    console.log(`path received by cloudinary : ${localFilePath}`);
+    if (!localFilePath || !fs.existsSync(localFilePath)) return null;
+
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
       timeout: 120000,
     });
-    fs.unlinkSync(localFilePath);
+
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
     return response;
   } catch (error) {
-    console.error("Cloudinary upload failed error :", error);
-    //remove the locally saved temp file as operation got failed
-    fs.unlinkSync(localFilePath);
+    console.error("Cloudinary upload failed error:", error);
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath);
+    }
     return null;
   }
 };

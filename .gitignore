@@ -1,4 +1,6 @@
 
+
+
 # Logs
 logs
 *.log
@@ -102,4 +104,7 @@ web_modules/
 # React Native Stack Base
 
 .expo
+.stitch/
+/ios
+/android
 __generated__

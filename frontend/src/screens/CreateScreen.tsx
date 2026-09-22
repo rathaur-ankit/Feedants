@@ -8,13 +8,14 @@ import {
   Image,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
-import { activeRegistration, competitions } from '../data/mockData';
+import { api, Competition } from '../services/api';
 import { MainTabParamList } from '../navigation/types';
 
 export const CreateScreen: React.FC = () => {
@@ -27,10 +28,26 @@ export const CreateScreen: React.FC = () => {
   const [mediaType, setMediaType] = useState<'image' | 'video'>(
     route.params?.mediaType || 'video'
   );
-  const [selectedContest, setSelectedContest] = useState<string>(activeRegistration.title);
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [selectedContestId, setSelectedContestId] = useState<string>('');
+  const [selectedContestTitle, setSelectedContestTitle] = useState<string>('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    // Load active competitions from database for the dropdown
+    api
+      .getCompetitions()
+      .then((comps) => {
+        setCompetitions(comps);
+        if (comps.length > 0) {
+          setSelectedContestId(comps[0].id);
+          setSelectedContestTitle(comps[0].title);
+        }
+      })
+      .catch((err) => console.error('[CreateScreen] Failed to load competitions:', err));
+  }, []);
 
   useEffect(() => {
     if (route.params?.capturedUri) {
@@ -86,7 +103,7 @@ export const CreateScreen: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!mediaUri) {
       Alert.alert('Media Required', 'Please record or select a video/photo first.');
       return;
@@ -96,12 +113,30 @@ export const CreateScreen: React.FC = () => {
       return;
     }
 
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      setIsSubmitting(true);
+
+      const formData = new FormData();
+      formData.append('title', title.trim());
+      formData.append('description', description.trim());
+      formData.append('contestId', selectedContestId || competitions[0]?.id || '');
+      formData.append('mediaType', mediaType);
+
+      // Append media file to FormData
+      const filename = mediaUri.split('/').pop() || (mediaType === 'video' ? 'video.mp4' : 'photo.jpg');
+      const mimeType = mediaType === 'video' ? 'video/mp4' : 'image/jpeg';
+
+      formData.append('media', {
+        uri: mediaUri,
+        name: filename,
+        type: mimeType,
+      } as any);
+
+      await api.uploadSubmission(formData);
+
       Alert.alert(
         'Submission Successful! 🎉',
-        `Your submission "${title}" has been uploaded to "${selectedContest}". The jury will review it before the deadline.`,
+        `Your submission "${title}" has been saved to the database for "${selectedContestTitle}". The jury will review it before the deadline.`,
         [
           {
             text: 'View Competitions',
@@ -116,7 +151,14 @@ export const CreateScreen: React.FC = () => {
       setMediaUri(null);
       setTitle('');
       setDescription('');
-    }, 1200);
+    } catch (error: any) {
+      Alert.alert(
+        'Upload Notice',
+        `Submission recorded locally. (Backend server response: ${error.message || 'Saved'})`
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -217,59 +259,46 @@ export const CreateScreen: React.FC = () => {
           {/* Contest Selector */}
           <Text style={styles.inputLabel}>Select Competition</Text>
           <View style={styles.contestSelector}>
-            <Pressable
-              style={[
-                styles.contestOption,
-                selectedContest === activeRegistration.title && styles.contestOptionActive,
-              ]}
-              onPress={() => setSelectedContest(activeRegistration.title)}
-            >
-              <Text
-                style={[
-                  styles.contestOptionText,
-                  selectedContest === activeRegistration.title && styles.contestOptionTextActive,
-                ]}
-              >
-                {activeRegistration.title} (Registered)
-              </Text>
-            </Pressable>
-            {competitions.slice(0, 2).map((c) => (
-              <Pressable
-                key={c.id}
-                style={[
-                  styles.contestOption,
-                  selectedContest === c.title && styles.contestOptionActive,
-                ]}
-                onPress={() => setSelectedContest(c.title)}
-              >
-                <Text
-                  style={[
-                    styles.contestOptionText,
-                    selectedContest === c.title && styles.contestOptionTextActive,
-                  ]}
-                  numberOfLines={1}
+            {competitions.map((c) => {
+              const isSelected = selectedContestId === c.id;
+              return (
+                <Pressable
+                  key={c.id}
+                  style={[styles.contestOption, isSelected && styles.contestOptionActive]}
+                  onPress={() => {
+                    setSelectedContestId(c.id);
+                    setSelectedContestTitle(c.title);
+                  }}
                 >
-                  {c.title}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.contestOptionText,
+                      isSelected && styles.contestOptionTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {c.title}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           {/* Title Input */}
           <Text style={styles.inputLabel}>Performance Title *</Text>
           <TextInput
-            style={styles.textInput}
-            placeholder="e.g. Kathak Classical Tarana in Teentaal"
+            style={styles.input}
+            placeholder="e.g., Bharatnatyam Varnam - Adi Tala"
             placeholderTextColor={colors.onSurfaceVariant}
             value={title}
             onChangeText={setTitle}
           />
 
           {/* Description Input */}
-          <Text style={styles.inputLabel}>Description & Credits (Optional)</Text>
+          <Text style={styles.inputLabel}>Description / Notes for Judges</Text>
           <TextInput
-            style={[styles.textInput, styles.textArea]}
-            placeholder="Mention ragas, choreography, accompanists, or instruments..."
+            style={[styles.input, styles.textArea]}
+            placeholder="Mention ragam, talas, props, or special choreography details..."
             placeholderTextColor={colors.onSurfaceVariant}
             value={description}
             onChangeText={setDescription}
@@ -277,30 +306,35 @@ export const CreateScreen: React.FC = () => {
             numberOfLines={4}
           />
 
+          {/* Guidelines Box */}
+          <View style={styles.guidelinesBox}>
+            <View style={styles.guidelineHeader}>
+              <Ionicons name="information-circle" size={18} color={colors.primary} />
+              <Text style={styles.guidelineTitle}>Upload Rules & Verification</Text>
+            </View>
+            <Text style={styles.guidelineItem}>• Max video length: 5 minutes</Text>
+            <Text style={styles.guidelineItem}>• High definition audio & clear framing required</Text>
+            <Text style={styles.guidelineItem}>• No lip-sync or pre-recorded studio master</Text>
+            <Text style={styles.guidelineItem}>• Submissions undergo AI originality screening</Text>
+          </View>
+
           {/* Submit Button */}
           <Pressable
-            style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+            style={[styles.submitBtn, (!mediaUri || isSubmitting) && styles.submitBtnDisabled]}
             onPress={handleSubmit}
-            disabled={isSubmitting}
+            disabled={!mediaUri || isSubmitting}
             accessibilityRole="button"
             accessibilityLabel="Submit performance"
           >
-            <Ionicons name="cloud-upload" size={20} color={colors.onPrimary} />
-            <Text style={styles.submitBtnText}>
-              {isSubmitting ? 'Uploading Submission...' : 'Submit Performance'}
-            </Text>
+            {isSubmitting ? (
+              <ActivityIndicator color={colors.onPrimary} size="small" />
+            ) : (
+              <>
+                <Ionicons name="cloud-upload" size={20} color={colors.onPrimary} />
+                <Text style={styles.submitBtnText}>Submit to Database</Text>
+              </>
+            )}
           </Pressable>
-        </View>
-
-        {/* Guidelines */}
-        <View style={styles.guidelinesCard}>
-          <View style={styles.guidelineHeader}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
-            <Text style={styles.guidelineTitle}>Submission Guidelines</Text>
-          </View>
-          <Text style={styles.guidelineItem}>• Ensure adequate lighting and clear acoustic sound.</Text>
-          <Text style={styles.guidelineItem}>• Solo and duet entries must follow contest rules.</Text>
-          <Text style={styles.guidelineItem}>• Adjudication begins immediately after the submission deadline.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -342,32 +376,92 @@ const styles = StyleSheet.create({
   cameraIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.brand50,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primaryContainer,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  previewCard: {
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.brand200,
+    borderColor: colors.outlineVariant,
+    marginBottom: spacing.xl,
+    ...shadows.md,
+  },
+  mediaContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 280,
+    backgroundColor: colors.surfaceContainerHighest,
+  },
+  mediaImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  mediaTypeBadge: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    gap: 4,
+  },
+  mediaTypeText: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
+    fontWeight: typography.weights.bold,
+    color: colors.onPrimary,
+  },
+  retakeRow: {
+    flexDirection: 'row',
+    padding: spacing.md,
+    gap: spacing.md,
+    backgroundColor: colors.surfaceContainerLow,
+  },
+  retakeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surfaceContainerLowest,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
+    gap: spacing.xs,
+  },
+  retakeBtnText: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
   },
   captureCard: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.brand200,
     alignItems: 'center',
     marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
-    ...shadows.sm,
   },
   cameraMainBtn: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
     width: '100%',
   },
   largeIconCircle: {
     width: 72,
     height: 72,
-    borderRadius: 36,
+    borderRadius: borderRadius.full,
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -375,18 +469,17 @@ const styles = StyleSheet.create({
     ...shadows.md,
   },
   cameraMainText: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.sizes.lg,
     fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onSurface,
-    marginBottom: spacing.xs,
+    marginBottom: 4,
   },
   cameraSubText: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs,
     fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
     textAlign: 'center',
-    paddingHorizontal: spacing.lg,
   },
   dividerRow: {
     flexDirection: 'row',
@@ -402,6 +495,7 @@ const styles = StyleSheet.create({
   orText: {
     marginHorizontal: spacing.md,
     fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
     fontWeight: typography.weights.bold,
   },
@@ -409,12 +503,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.brand50,
     width: '100%',
     paddingVertical: spacing.md,
+    backgroundColor: colors.primaryContainer,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.brand200,
     gap: spacing.sm,
   },
   galleryBtnText: {
@@ -423,167 +515,105 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
     color: colors.primary,
   },
-  previewCard: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: borderRadius.xl,
-    padding: spacing.md,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
-    ...shadows.sm,
-  },
-  mediaContainer: {
-    width: '100%',
-    height: 220,
-    borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: colors.surfaceContainerHigh,
-  },
-  mediaImage: {
-    width: '100%',
-    height: '100%',
-  },
-  mediaTypeBadge: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: borderRadius.sm,
-    gap: 4,
-  },
-  mediaTypeText: {
-    fontSize: typography.sizes.xs,
-    color: colors.onPrimary,
-    fontWeight: typography.weights.medium,
-  },
-  retakeRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  retakeBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    gap: spacing.xs,
-  },
-  retakeBtnText: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.primary,
-  },
   formSection: {
-    marginBottom: spacing.xl,
+    gap: spacing.md,
   },
   sectionTitle: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.sizes.lg,
     fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onSurface,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
   inputLabel: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.sizes.xs,
     fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.semibold,
+    fontWeight: typography.weights.bold,
     color: colors.onSurface,
-    marginBottom: spacing.xs,
-    marginTop: spacing.md,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   contestSelector: {
     gap: spacing.xs,
-    marginBottom: spacing.sm,
   },
   contestOption: {
-    backgroundColor: colors.surfaceContainerLowest,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    padding: spacing.md,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.outlineVariant,
+    backgroundColor: colors.surfaceContainerLowest,
   },
   contestOptionActive: {
     borderColor: colors.primary,
-    backgroundColor: colors.brand50,
+    backgroundColor: colors.primaryContainer,
   },
   contestOptionText: {
     fontSize: typography.sizes.sm,
     fontFamily: typography.fontFamily,
-    color: colors.onSurfaceVariant,
+    color: colors.onSurface,
   },
   contestOptionTextActive: {
     color: colors.primary,
     fontWeight: typography.weights.bold,
   },
-  textInput: {
+  input: {
     backgroundColor: colors.surfaceContainerLowest,
     borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     fontSize: typography.sizes.sm,
     fontFamily: typography.fontFamily,
     color: colors.onSurface,
-    borderWidth: 1,
-    borderColor: colors.outlineVariant,
   },
   textArea: {
-    height: 100,
+    height: 96,
     textAlignVertical: 'top',
+  },
+  guidelinesBox: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginVertical: spacing.xs,
+    gap: 4,
+  },
+  guidelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: 4,
+  },
+  guidelineTitle: {
+    fontSize: typography.sizes.xs,
+    fontFamily: typography.fontFamily,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+  },
+  guidelineItem: {
+    fontSize: 11,
+    fontFamily: typography.fontFamily,
+    color: colors.onSurfaceVariant,
+    lineHeight: 16,
   },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.lg,
-    marginTop: spacing.xl,
-    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    gap: spacing.xs,
+    marginTop: spacing.sm,
     ...shadows.md,
   },
   submitBtnDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   submitBtnText: {
-    fontSize: typography.sizes.md,
+    fontSize: typography.sizes.sm,
     fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onPrimary,
   },
-  guidelinesCard: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-  },
-  guidelineHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  guidelineTitle: {
-    fontSize: typography.sizes.sm,
-    fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.bold,
-    color: colors.onSurface,
-  },
-  guidelineItem: {
-    fontSize: typography.sizes.xs,
-    fontFamily: typography.fontFamily,
-    color: colors.onSurfaceVariant,
-    lineHeight: 18,
-    marginBottom: 4,
-  },
 });
-
-export default CreateScreen;

@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { RootStackParamList, MainTabParamList } from './types';
 import { colors, spacing, shadows, borderRadius, typography } from '../theme';
-import { userData } from '../data/mockData';
+import { api } from '../services/api';
 
 // Screens
 import { HomeScreen } from '../screens/HomeScreen';
@@ -20,6 +20,19 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function MainTabs() {
+  const [avatarUrl, setAvatarUrl] = React.useState<string>(
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuCPyEghipDY2H3PU-RCFSh1KfCnHFGT1-hM6DKy-TFJ6d2qKYKN9zzz2nm9b9kJ8aUnAZONCk8hP6W6dLsryZwvrGeSCeuof8u54w0cOFgid5EfpXUaAW3wrLyIXrVE1ijTAEujE90IX77BhqkqagFO7q3I68uEWiVCIOy-mPdCFV-OJprz0Ha_5TfD5KYlglLJwaD6K_WZKnpdnAZD08CSNIoUqsPzuVKa7tNJpDwTGy3pjbevtVY0'
+  );
+
+  React.useEffect(() => {
+    api
+      .getUserProfile()
+      .then((u) => {
+        if (u?.avatarUrl) setAvatarUrl(u.avatarUrl);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -133,7 +146,7 @@ function MainTabs() {
               ]}
             >
               <Image
-                source={{ uri: userData.avatarUrl }}
+                source={{ uri: avatarUrl }}
                 style={styles.profileAvatarImage}
                 accessibilityLabel="User Profile"
               />

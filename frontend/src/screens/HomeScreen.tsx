@@ -1,17 +1,17 @@
-import React from 'react';
-import { ScrollView, View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, shadows } from '../theme';
-import {
-  userData,
-  activeRegistration,
-  megaContest,
-  categories,
-  competitions,
-  champions,
-  trustBadges
-} from '../data/mockData';
+import { api, Competition, CategoryItem, ChampionItem } from '../services/api';
 
 import { useNavigation } from '@react-navigation/native';
 import { IconButton } from '../components/atoms/IconButton';
@@ -22,141 +22,242 @@ import { CompetitionCard } from '../components/organisms/CompetitionCard';
 import { ChampionCard } from '../components/organisms/ChampionCard';
 import { ReferralBanner } from '../components/organisms/ReferralBanner';
 
+const trustBadges = [
+  { icon: 'shield-checkmark', label: '100% Secure' },
+  { icon: 'ribbon', label: 'Unbiased Jury' },
+  { icon: 'cash', label: 'Direct Payouts' },
+] as const;
+
 export const HomeScreen = () => {
   const navigation = useNavigation<any>();
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [activeReg, setActiveReg] = useState<any>(null);
+  const [megaContest, setMegaContest] = useState<any>(null);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [champions, setChampions] = useState<ChampionItem[]>([]);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [
+        userData,
+        activeRegData,
+        megaData,
+        categoriesData,
+        competitionsData,
+        championsData,
+      ] = await Promise.all([
+        api.getUserProfile(),
+        api.getActiveRegistration(),
+        api.getMegaContest(),
+        api.getCategories(),
+        api.getCompetitions(),
+        api.getChampions(),
+      ]);
+
+      setUser(userData);
+      setActiveReg(activeRegData);
+      setMegaContest(megaData);
+      setCategories(categoriesData);
+      setCompetitions(competitionsData);
+      setChampions(championsData);
+    } catch (error) {
+      console.error('[HomeScreen] Error loading data from API:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  const userName = user?.name ? user.name.split(' ')[0] : 'Creator';
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+        }
+      >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Hello, {userData.name.split(' ')[0]} 👋</Text>
+          <Text style={styles.greeting}>Hello, {userName} 👋</Text>
           <IconButton icon="notifications" accessibilityLabel="Notifications" />
         </View>
 
         {/* Search */}
         <View style={styles.searchContainer}>
-          <SearchBar onFilterPress={() => {}} />
+          <SearchBar onFilterPress={() => navigation.navigate('Competitions')} />
         </View>
 
-        {/* Active Registration */}
-        <View style={styles.activeRegistrationCard}>
-          <View style={styles.activeRegHeader}>
-            <Text style={styles.activeRegTitle}>{activeRegistration.title}</Text>
-            <Badge label={activeRegistration.status} type="success" />
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Fetching arena from database...</Text>
           </View>
-          <View style={styles.activeRegFooter}>
-            <View style={styles.deadlineContainer}>
-              <Ionicons name="time" size={16} color={colors.error} />
-              <Text style={styles.deadlineText}>Deadline: {activeRegistration.deadline}</Text>
-            </View>
-            <Pressable
-              style={styles.uploadButton}
-              onPress={() => navigation.navigate('ContestDetails', { contestId: '1' })}
-              accessibilityRole="button"
-              accessibilityLabel="Upload submission"
-            >
-              <Ionicons name="cloud-upload" size={16} color={colors.primary} />
-              <Text style={styles.uploadText}>Upload</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Mega Contest Banner */}
-        <View style={styles.megaContestBanner}>
-          <View style={styles.megaContestContent}>
-            <Text style={styles.megaContestTitle}>{megaContest.title}</Text>
-            <Text style={styles.megaContestDesc}>{megaContest.description}</Text>
-            <View style={styles.megaContestFooter}>
-              <View>
-                <Text style={styles.prizeLabel}>Prize Pool</Text>
-                <Text style={styles.megaPrize}>{megaContest.prizePool}</Text>
+        ) : (
+          <>
+            {/* Active Registration */}
+            {activeReg && (
+              <View style={styles.activeRegistrationCard}>
+                <View style={styles.activeRegHeader}>
+                  <Text style={styles.activeRegTitle}>{activeReg.title}</Text>
+                  <Badge label={activeReg.status || 'Registered'} type="success" />
+                </View>
+                <View style={styles.activeRegFooter}>
+                  <View style={styles.deadlineContainer}>
+                    <Ionicons name="time" size={16} color={colors.error} />
+                    <Text style={styles.deadlineText}>Deadline: {activeReg.deadline}</Text>
+                  </View>
+                  <Pressable
+                    style={styles.uploadButton}
+                    onPress={() =>
+                      navigation.navigate('ContestDetails', {
+                        contestId: activeReg.contestId || competitions[0]?.id || '1',
+                      })
+                    }
+                    accessibilityRole="button"
+                    accessibilityLabel="Upload submission"
+                  >
+                    <Ionicons name="cloud-upload" size={16} color={colors.primary} />
+                    <Text style={styles.uploadText}>Upload</Text>
+                  </Pressable>
+                </View>
               </View>
-              <Pressable
-                style={styles.registerButton}
-                onPress={() => navigation.navigate('ContestDetails', { contestId: '3' })}
-                accessibilityRole="button"
-                accessibilityLabel="Register for Mega Contest"
+            )}
+
+            {/* Mega Contest Banner */}
+            {megaContest && (
+              <View style={styles.megaContestBanner}>
+                <View style={styles.megaContestContent}>
+                  <Text style={styles.megaContestTitle}>{megaContest.title}</Text>
+                  <Text style={styles.megaContestDesc}>{megaContest.description}</Text>
+                  <View style={styles.megaContestFooter}>
+                    <View>
+                      <Text style={styles.prizeLabel}>Prize Pool</Text>
+                      <Text style={styles.megaPrize}>{megaContest.prizePool}</Text>
+                    </View>
+                    <Pressable
+                      style={styles.registerButton}
+                      onPress={() =>
+                        navigation.navigate('ContestDetails', {
+                          contestId: megaContest.id || megaContest._id || competitions[0]?.id,
+                        })
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel="Register for Mega Contest"
+                    >
+                      <Text style={styles.registerText}>Register Now</Text>
+                      <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Categories */}
+            {categories.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoriesContainer}
+                contentContainerStyle={styles.categoriesContent}
               >
-                <Text style={styles.registerText}>Register Now</Text>
-                <Ionicons name="arrow-forward" size={16} color={colors.onPrimary} />
+                {categories.map((cat, idx) => (
+                  <Chip
+                    key={cat.id || idx}
+                    label={cat.label}
+                    emoji={cat.emoji}
+                    isActive={idx === 0}
+                    onPress={() => navigation.navigate('Competitions')}
+                  />
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Trending Competitions */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Trending Competitions</Text>
+              <Pressable
+                onPress={() => navigation.navigate('Competitions')}
+                accessibilityRole="button"
+                accessibilityLabel="View all competitions"
+              >
+                <Text style={styles.viewAll}>View all</Text>
               </Pressable>
             </View>
-          </View>
-        </View>
+            <View style={styles.competitionsContainer}>
+              {competitions.map((comp) => (
+                <CompetitionCard
+                  key={comp.id}
+                  title={comp.title}
+                  tags={comp.tags}
+                  prizePool={comp.prizePool}
+                  judge={comp.judge}
+                  spotsLeft={comp.spotsLeft}
+                  totalSpots={comp.totalSpots}
+                  entryFee={comp.entryFee}
+                  onJoinPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
+                  onJudgeIntroPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
+                />
+              ))}
+            </View>
 
-        {/* Categories */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer} contentContainerStyle={styles.categoriesContent}>
-          {categories.map((cat) => (
-            <Chip
-              key={cat.id}
-              label={cat.label}
-              emoji={cat.emoji}
-              isActive={cat.isActive}
-              onPress={() => navigation.navigate('Competitions')}
-            />
-          ))}
-        </ScrollView>
+            {/* Hall of Champions */}
+            {champions.length > 0 && (
+              <>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Hall of Champions</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.championsContainer}
+                  contentContainerStyle={styles.championsContent}
+                >
+                  {champions.map((champ) => (
+                    <ChampionCard
+                      key={champ.id}
+                      name={champ.name}
+                      prize={champ.prize}
+                      place={champ.place}
+                      imageUrl={champ.imageUrl}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            )}
 
-        {/* Trending Competitions */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Trending Competitions</Text>
-          <Pressable
-            onPress={() => navigation.navigate('Competitions')}
-            accessibilityRole="button"
-            accessibilityLabel="View all competitions"
-          >
-            <Text style={styles.viewAll}>View all</Text>
-          </Pressable>
-        </View>
-        <View style={styles.competitionsContainer}>
-          {competitions.map((comp) => (
-            <CompetitionCard
-              key={comp.id}
-              title={comp.title}
-              tags={comp.tags}
-              prizePool={comp.prizePool}
-              judge={comp.judge}
-              spotsLeft={comp.spotsLeft}
-              totalSpots={comp.totalSpots}
-              entryFee={comp.entryFee}
-              onJoinPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
-              onJudgeIntroPress={() => navigation.navigate('ContestDetails', { contestId: comp.id })}
-            />
-          ))}
-        </View>
+            {/* Referral Banner */}
+            <ReferralBanner link={user?.referralLink || 'feedants.com/r/creator'} />
 
-        {/* Hall of Champions */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Hall of Champions</Text>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.championsContainer} contentContainerStyle={styles.championsContent}>
-          {champions.map((champ) => (
-            <ChampionCard
-              key={champ.id}
-              name={champ.name}
-              prize={champ.prize}
-              place={champ.place}
-              imageUrl={champ.imageUrl}
-            />
-          ))}
-        </ScrollView>
-
-        {/* Referral */}
-        <ReferralBanner link={userData.referralLink} />
-
-        {/* Trust Badges */}
-        <View style={styles.trustFooter}>
-          {trustBadges.map((badge, index) => (
-            <React.Fragment key={badge.label}>
-              <View style={styles.trustBadge}>
-                <Ionicons name={badge.icon as any} size={24} color={colors.onSurfaceVariant} />
-                <Text style={styles.trustText}>{badge.label}</Text>
-              </View>
-              {index < trustBadges.length - 1 && <View style={styles.trustDivider} />}
-            </React.Fragment>
-          ))}
-        </View>
-
+            {/* Trust Badges */}
+            <View style={styles.trustFooter}>
+              {trustBadges.map((badge, index) => (
+                <React.Fragment key={badge.label}>
+                  <View style={styles.trustBadge}>
+                    <Ionicons name={badge.icon as any} size={24} color={colors.onSurfaceVariant} />
+                    <Text style={styles.trustText}>{badge.label}</Text>
+                  </View>
+                  {index < trustBadges.length - 1 && <View style={styles.trustDivider} />}
+                </React.Fragment>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -173,6 +274,17 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: spacing.xl,
     paddingBottom: spacing['6xl'],
+  },
+  loadingContainer: {
+    paddingVertical: spacing['4xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.onSurfaceVariant,
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fontFamily,
   },
   header: {
     flexDirection: 'row',
@@ -249,66 +361,70 @@ const styles = StyleSheet.create({
     ...shadows.md,
   },
   megaContestContent: {
+    gap: spacing.md,
   },
   megaContestTitle: {
-    fontSize: typography.sizes['2xl'],
+    fontSize: typography.sizes.xl,
     fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onPrimary,
-    marginBottom: spacing.sm,
   },
   megaContestDesc: {
     fontSize: typography.sizes.sm,
     fontFamily: typography.fontFamily,
-    color: colors.onPrimaryContainer,
-    marginBottom: spacing.lg,
+    color: colors.onPrimary,
+    opacity: 0.9,
+    lineHeight: 20,
   },
   megaContestFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
+    marginTop: spacing.sm,
   },
   prizeLabel: {
     fontSize: typography.sizes.xs,
     fontFamily: typography.fontFamily,
-    color: colors.onPrimaryContainer,
-    marginBottom: 2,
+    color: colors.onPrimary,
+    opacity: 0.8,
   },
   megaPrize: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.sizes['2xl'],
     fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
-    color: colors.amber500,
+    color: colors.onPrimary,
   },
   registerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.primaryContainer,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
+    gap: spacing.xs,
   },
   registerText: {
     fontSize: typography.sizes.sm,
     fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onPrimary,
-    marginRight: 4,
   },
   categoriesContainer: {
     marginBottom: spacing.xl,
+    marginHorizontal: -spacing.xl,
   },
   categoriesContent: {
-    paddingRight: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.sm,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.sizes.lg,
     fontFamily: typography.fontFamily,
     fontWeight: typography.weights.bold,
     color: colors.onSurface,
@@ -316,41 +432,43 @@ const styles = StyleSheet.create({
   viewAll: {
     fontSize: typography.sizes.sm,
     fontFamily: typography.fontFamily,
-    fontWeight: typography.weights.medium,
+    fontWeight: typography.weights.bold,
     color: colors.primary,
   },
   competitionsContainer: {
+    gap: spacing.lg,
     marginBottom: spacing.xl,
   },
   championsContainer: {
-    marginHorizontal: -spacing.xl,
     marginBottom: spacing.xl,
+    marginHorizontal: -spacing.xl,
   },
   championsContent: {
     paddingHorizontal: spacing.xl,
+    gap: spacing.md,
   },
   trustFooter: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: spacing.xl,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: colors.surfaceContainerLow,
     borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
   },
   trustBadge: {
     alignItems: 'center',
-    flex: 1,
+    gap: spacing.xs,
   },
   trustText: {
     fontSize: typography.sizes.xs,
     fontFamily: typography.fontFamily,
     color: colors.onSurfaceVariant,
-    marginTop: spacing.xs,
-    textAlign: 'center',
+    fontWeight: typography.weights.medium,
   },
   trustDivider: {
     width: 1,
-    height: 30,
+    height: 24,
     backgroundColor: colors.outlineVariant,
   },
 });

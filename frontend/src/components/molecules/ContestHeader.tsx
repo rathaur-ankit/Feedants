@@ -2,7 +2,6 @@ import React from 'react';
 import { View, Text, StyleSheet, Image, Pressable, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography, borderRadius, shadows } from '../../theme';
-import { contestDetails } from '../../data/mockData';
 
 export interface ContestHeaderProps {
   readonly title: string;
