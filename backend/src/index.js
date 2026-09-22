@@ -42,9 +42,9 @@ if (cluster.isPrimary && process.env.NODE_ENV === "production") {
       server.headersTimeout = 66000;   // Must be > keepAliveTimeout
       server.maxRequestsPerClient = 0; // Unlimited requests over keep-alive
 
-      server.listen(PORT, () => {
+      server.listen(PORT, "0.0.0.0", () => {
         console.log(
-          `[Server Worker ${process.pid}] Listening at http://localhost:${PORT} in ${process.env.NODE_ENV || "development"} mode`
+          `[Server Worker ${process.pid}] Listening at http://0.0.0.0:${PORT} in ${process.env.NODE_ENV || "development"} mode`
         );
       });
 

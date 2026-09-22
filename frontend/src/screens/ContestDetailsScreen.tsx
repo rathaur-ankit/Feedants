@@ -219,8 +219,13 @@ export const ContestDetailsScreen: React.FC = () => {
         <Pressable
           style={styles.backButton}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate('Home');
+            }
+          }}
         >
           <Ionicons name="arrow-back" size={22} color="#111827" />
           <Text style={styles.backText}>{language === 'HI' ? 'वापस जाएं' : 'Go back'}</Text>
